@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";  // Import Footer here
 import Home from "./pages/Home";
+import InvestmentDetails from "./pages/InvestmentDetails";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
@@ -44,6 +45,7 @@ export default function App() {
           <Routes>
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms-of-service" element={<TermsOfService />} />
+            <Route path="/investment-details" element={<InvestmentDetails />} />
             <Route path="/" element={<Home />} />
 
             <Route
