@@ -32,13 +32,7 @@ const Home = () => {
               Get Started
             </Link>
 
-            <Link
-              to="/about"
-              className="px-6 py-3 bg-transparent border border-yellow-600 text-yellow-600 rounded-lg hover:bg-yellow-600 hover:text-white transition"
-            >
-              Learn More
-            </Link>
-
+            
             <Link
               to="/investment-details"
               className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 px-6 rounded-lg"
