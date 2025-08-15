@@ -3,6 +3,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import CryptoCarousel from "../components/CryptoCarousel";
 import PaymentInfoSection from "../components/PaymentInfoSection";
+import WalletCarousel from "../components/WalletCarousel";
 import { motion } from "framer-motion";
 import SupportCenter from "../components/SupportCenter";
 
@@ -58,7 +59,11 @@ const Home = () => {
         </motion.div>
       </section>
       
+      {/* Payment Info */}
       <PaymentInfoSection />
+
+      {/* Wallet Carousel */}
+      <WalletCarousel />
 
       {/* Support Center */}
       <div className="min-h-screen bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8">
