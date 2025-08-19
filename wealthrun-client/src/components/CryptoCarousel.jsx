@@ -69,12 +69,12 @@ const CryptoCarousel = () => {
           return (
             <div
               key={coin.symbol}
-              className="flex flex-col items-center justify-center text-center"
+              className="flex flex-col items-center justify-center h-44 text-center"
             >
               <img
                 src={coin.img}
                 alt={coin.symbol}
-                className="w-24 h-24 md:w-24 md:h-24 object-contain drop-shadow-md transition-transform hover:scale-105 duration-300"
+                className="w-20 h-20 md:w-24 md:h-24 object-contain drop-shadow-md transition-transform hover:scale-105 duration-300 mb-2"
               />
               <p className="mt-2 text-lg font-semibold text-yellow-400">
                 {price != null ? `$${price.toLocaleString()}` : "Loading..."}
