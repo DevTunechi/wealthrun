@@ -1,6 +1,10 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import CountUp from "react-countup";
+import btcImg from "../assets/btc.png";
+import ethImg from "../assets/eth.png";
+import usdtImg from "../assets/usdt.png"
 
 export default function InvestmentDetails() {
   return (
@@ -12,27 +16,36 @@ export default function InvestmentDetails() {
 
       {/* Hero Image */}
       <div className="flex justify-center mb-10">
-        <img
-          src="https://cryptologos.cc/logos/bitcoin-btc-logo.png"
+        <motion.img
+          src={btcImg}
           alt="BTC"
-          className="w-32 h-32 mx-4"
+          className="w-32 h-32 mx-4 object-contain"
+          whileHover={{ scale: 1.5 }}
+          animate={{ y: [0, -10, 0] }}
+          transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
         />
-        <img
-          src="https://cryptologos.cc/logos/ethereum-eth-logo.png"
+        <motion.img
+          src={ethImg}
           alt="ETH"
-          className="w-32 h-32 mx-4"
+          className="w-32 h-32 mx-4 object-contain"
+          whileHover={{ scale: 1.5 }}
+          animate={{ y: [0, -10, 0] }}
+           transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
         />
-        <img
-          src="https://cryptologos.cc/logos/tether-usdt-logo.png"
+        <motion.img
+          src={usdtImg}
           alt="USDT"
-          className="w-32 h-32 mx-4"
+          className="w-32 h-32 mx-4 object-contain"
+          whileHover={{ scale: 1.5 }}
+          animate={{ y: [0, -10, 0] }}
+          transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
         />
-      </div>
+      </div>a
 
       {/* Plan 1 */}
       <div className="bg-gray-800 rounded-lg p-6 shadow-lg mb-8">
         <h2 className="text-2xl font-semibold text-yellow-400 mb-4">
-          Plan 1: 10% Monthly Profit
+          Basic Plan: 10% Monthly Profit
         </h2>
         <p className="mb-3">
           For investments between <span className="font-bold">$100</span> and{" "}
@@ -53,7 +66,7 @@ export default function InvestmentDetails() {
         </p>
         <img
           src="https://images.unsplash.com/photo-1627537117805-9a5c2f3c6b70"
-          alt="Plan 1"
+          alt="Basic Plan"
           className="rounded-lg mt-4"
         />
       </div>
@@ -61,7 +74,7 @@ export default function InvestmentDetails() {
       {/* Plan 2 */}
       <div className="bg-gray-800 rounded-lg p-6 shadow-lg mb-8">
         <h2 className="text-2xl font-semibold text-yellow-400 mb-4">
-          Plan 2: 15% Monthly Profit
+          Premium Plan: 15% Monthly Profit
         </h2>
         <p className="mb-3">
           For investments <span className="font-bold">$1,000 and above</span>, you’ll earn{" "}
@@ -81,7 +94,7 @@ export default function InvestmentDetails() {
         </p>
         <img
           src="https://images.unsplash.com/photo-1620823074629-4a5d8e99c6a3"
-          alt="Plan 2"
+          alt="Premium Plan"
           className="rounded-lg mt-4"
         />
       </div>
@@ -96,7 +109,7 @@ export default function InvestmentDetails() {
           <li>Select your investment plan.</li>
           <li>Deposit into our official wallet for BTC, ETH, or USDT.</li>
           <li>Track daily profits on your dashboard.</li>
-          <li>Withdraw anytime, with processing in under 30 minutes.</li>
+          <li>Withdraw monthly, with processing in under 30 minutes.</li>
         </ol>
       </div>
 
