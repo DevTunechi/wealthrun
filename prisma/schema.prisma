@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int             @id @default(autoincrement())
+  name      String
+  email     String          @unique
+  password  String
+  role      String          @default("user")
+  wallet    Wallet?
+  investments UserInvestment[]   // ← back-relation added
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model Wallet {
+  id          Int          @id @default(autoincrement())
+  user        User         @relation(fields: [userId], references: [id])
+  userId      Int          @unique
+  btcBalance  Float        @default(0)
+  ethBalance  Float        @default(0)
+  usdtBalance Float        @default(0)
+  piBalance   Float        @default(0)
+  transactions Transaction[]
+}
+
+model Transaction {
+  id          Int       @id @default(autoincrement())
+  wallet      Wallet    @relation(fields: [walletId], references: [id])
+  walletId    Int
+  type        String    // "credit" or "debit"
+  crypto      String    // BTC, ETH, USDT, Pi
+  amount      Float
+  status      String    // pending, confirmed, failed
+  createdAt   DateTime  @default(now())
+}
+
+model InvestmentPlan {
+  id           Int             @id @default(autoincrement())
+  name         String
+  description  String?
+  minAmount    Float
+  maxAmount    Float
+  roiPercent   Float
+  durationDays Int
+  investments  UserInvestment[]  // ← back-relation added
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model UserInvestment {
+  id            Int            @id @default(autoincrement())
+  user          User           @relation(fields: [userId], references: [id])
+  userId        Int
+  plan          InvestmentPlan @relation(fields: [planId], references: [id])
+  planId        Int
+  amount        Float
+  startDate     DateTime       @default(now())
+  lastCredited  DateTime?
+  status        String         @default("active") // active, completed
+}
+
+model MarketSnapshot {
+  id        Int      @id @default(autoincrement())
+  crypto    String
+  price     Float
+  timestamp DateTime @default(now())
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  action    String
+  details   String
+  createdAt DateTime @default(now())
+}
