@@ -4,21 +4,15 @@
   "description": "Backend API for WealthRun",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "postinstall": "prisma generate",
+    "start": "prisma generate && node src/server.js",
     "prisma:generate": "prisma generate --schema=src/prisma/schema.prisma",
-    "prisma:migrate": "prisma migrate dev --schema=src/prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate deploy --schema=src/prisma/schema.prisma",
     "prisma:studio": "prisma studio --schema=src/prisma/schema.prisma"
   },
-  "keywords": [
-    "express",
-    "api",
-    "wealthrun"
-  ],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["express", "api", "wealthrun"],
   "dependencies": {
+    "@prisma/client": "^6.14.0",
     "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
@@ -29,12 +23,11 @@
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.15",
-    "pg": "^8.16.0"
+    "pg": "^8.16.0",
+    "prisma": "^6.14.0"
   },
   "devDependencies": {
-    "@prisma/client": "^6.14.0",
-    "nodemon": "^3.1.10",
-    "prisma": "^6.14.0"
+    "nodemon": "^3.1.10"
   },
   "prisma": {
     "schema": "src/prisma/schema.prisma"
