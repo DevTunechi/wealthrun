@@ -35,10 +35,25 @@ app.get("/", (req, res) => {
 });
 
 // ------------------------
+// Routes
+// ------------------------
+const authRoutes = require("./routes/authRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
+const withdrawalRoutes = require("./routes/withdrawalRoutes");
+const userRoutes = require("./routes/userRoutes");
+const emailPreviewRoutes = require("./routes/emailPreview");
+
+app.use("/auth", authRoutes);
+app.use("/payments", paymentRoutes);
+app.use("/withdrawals", withdrawalRoutes);
+app.use("/users", userRoutes);
+app.use("/preview", emailPreviewRoutes);
+
+// ------------------------
 // Force HTTPS in production
 // ------------------------
 app.use((req, res, next) => {
-  if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] !== 'https') {
+  if (process.env.NODE_ENV === "production" && req.headers["x-forwarded-proto"] !== "https") {
     return res.redirect(`https://${req.headers.host}${req.url}`);
   }
   next();

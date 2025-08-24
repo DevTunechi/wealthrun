@@ -1,0 +1,20 @@
+{
+  "name": "wealthrun-mailer",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/test-send.js",
+  "scripts": {
+    "start": "node src/test-send.js",
+    "send:welcome": "node src/test-send.js welcome",
+    "send:password": "node src/test-send.js password",
+    "send:payment": "node src/test-send.js payment",
+    "send:withdrawal": "node src/test-send.js withdrawal"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "handlebars": "^4.7.8",
+    "juice": "^10.0.0",
+    "mjml": "^4.15.3",
+    "nodemailer": "^6.9.14"
+  }
+}

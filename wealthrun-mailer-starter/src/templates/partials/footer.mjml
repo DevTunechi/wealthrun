@@ -1,0 +1,12 @@
+<mj-section background-color="#0b0b0c">
+  <mj-column>
+    <mj-text align="center" color="#9aa0a6" font-size="12px" font-family="Inter, Arial">
+      This is an automated message—please do not reply.<br/>
+      Need help? Contact {{supportEmail}}.
+    </mj-text>
+    <mj-spacer height="10px"/>
+    <mj-text align="center" color="#666" font-size="11px">
+      © {{year}} WealthRun. All rights reserved.
+    </mj-text>
+  </mj-column>
+</mj-section>
