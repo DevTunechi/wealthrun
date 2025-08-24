@@ -10,7 +10,11 @@
     "prisma:migrate": "prisma migrate deploy --schema=src/prisma/schema.prisma",
     "prisma:studio": "prisma studio --schema=src/prisma/schema.prisma"
   },
-  "keywords": ["express", "api", "wealthrun"],
+  "keywords": [
+    "express",
+    "api",
+    "wealthrun"
+  ],
   "dependencies": {
     "@prisma/client": "^6.14.0",
     "axios": "^1.11.0",
@@ -21,6 +25,7 @@
     "express-rate-limit": "^6.11.2",
     "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.2",
+    "mjml": "^4.15.3",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.15",
     "pg": "^8.16.0",
