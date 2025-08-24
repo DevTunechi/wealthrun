@@ -1,0 +1,7 @@
+<mj-section background-color="#0b0b0c" padding="20px 0">
+  <mj-column>
+    <mj-text align="center" color="#f5c451" font-size="22px" font-weight="700" font-family="Inter, Arial">
+      WEALTHRUN
+    </mj-text>
+  </mj-column>
+</mj-section>
