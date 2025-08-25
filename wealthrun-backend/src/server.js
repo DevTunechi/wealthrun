@@ -45,6 +45,7 @@ const emailPreviewRoutes = require("./routes/emailPreview");
 
 app.use("/auth", authRoutes);
 app.use("/payments", paymentRoutes);
+app.use("/api/payments", paymentRoutes); // 👈 added alias route
 app.use("/withdrawals", withdrawalRoutes);
 app.use("/users", userRoutes);
 app.use("/preview", emailPreviewRoutes);

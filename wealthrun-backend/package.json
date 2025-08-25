@@ -16,6 +16,7 @@
     "wealthrun"
   ],
   "dependencies": {
+    "@nowpaymentsio/nowpayments-api-js": "^1.0.5",
     "@prisma/client": "^6.14.0",
     "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
@@ -28,6 +29,7 @@
     "mjml": "^4.15.3",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.15",
+    "nowpayments-api": "^1.0.1",
     "pg": "^8.16.0",
     "prisma": "^6.14.0"
   },
