@@ -36,3 +36,15 @@ export async function requestWithdrawal({ userId, amount, coin, address }) {
   }
   return res.json();
 }
+
+// --------------------
+// Payments
+// --------------------
+import axios from "axios";
+
+export const createPayment = (data) => {
+  return axios.post(
+    `${process.env.REACT_APP_API_URL}/api/payments/create`,
+    data
+  );
+};

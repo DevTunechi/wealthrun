@@ -19,6 +19,7 @@ export default function WalletInfo() {
       <h2 className="text-yellow-400 text-2xl font-bold mb-6">Platform Wallet Addresses</h2>
       <p className="mb-4 text-gray-300">
         Please fund your investments by sending your chosen crypto to one of the following wallets:
+        USDT ERC-20
       </p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {Object.entries(wallets).map(([coin, address]) => (
