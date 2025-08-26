@@ -40,7 +40,7 @@ export default function InvestmentDetails() {
           animate={{ y: [0, -10, 0] }}
           transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
         />
-      </div>a
+      </div>
 
       {/* Plan 1 */}
       <div className="bg-gray-800 rounded-lg p-6 shadow-lg mb-8">
@@ -65,7 +65,7 @@ export default function InvestmentDetails() {
           </span>
         </p>
         <img
-          src="https://images.unsplash.com/photo-1627537117805-9a5c2f3c6b70"
+          src={1}
           alt="Basic Plan"
           className="rounded-lg mt-4"
         />
@@ -93,7 +93,7 @@ export default function InvestmentDetails() {
           </span>
         </p>
         <img
-          src="https://images.unsplash.com/photo-1620823074629-4a5d8e99c6a3"
+          src={1}
           alt="Premium Plan"
           className="rounded-lg mt-4"
         />
