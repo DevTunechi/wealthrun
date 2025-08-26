@@ -1,6 +1,6 @@
 // src/components/Navbar.jsx
 import React, { useState } from "react";
-import logo from "../assets/1.png";
+import logo from "../assets/logo.png";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { logout } from "../services/firebase";

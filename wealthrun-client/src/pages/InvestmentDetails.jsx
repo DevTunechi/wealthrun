@@ -4,7 +4,8 @@ import { motion } from "framer-motion";
 import CountUp from "react-countup";
 import btcImg from "../assets/btc.png";
 import ethImg from "../assets/eth.png";
-import usdtImg from "../assets/usdt.png"
+import usdtImg from "../assets/usdt.png";
+import logoImg from "../assets/logo.png"
 
 export default function InvestmentDetails() {
   return (
@@ -65,9 +66,9 @@ export default function InvestmentDetails() {
           </span>
         </p>
         <img
-          src={1}
+          src={logoImg}
           alt="Basic Plan"
-          className="rounded-lg mt-4"
+          className="w-6 h-6 rounded-full mt-4"
         />
       </div>
 
@@ -93,9 +94,9 @@ export default function InvestmentDetails() {
           </span>
         </p>
         <img
-          src={1}
+          src={logoImg}
           alt="Premium Plan"
-          className="rounded-lg mt-4"
+          className="w-6 h-4 rounded-full mt-4"
         />
       </div>
 
