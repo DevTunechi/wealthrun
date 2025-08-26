@@ -4,6 +4,7 @@ import WalletInfo from "../components/WalletInfo";
 import React, { useState, useEffect, useCallback } from "react";
 import { logout } from "../services/firebase";
 import { useNavigate } from "react-router-dom";
+import { createTestPayment } from "../api/payments";
 
 // Backend API helpers (Vite env expected: VITE_API_URL)
 import { createPayment } from "../api/payments";
