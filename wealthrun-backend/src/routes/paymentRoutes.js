@@ -8,14 +8,12 @@ const NowPayments = NowPaymentsModule.default || NowPaymentsModule;
 
 const router = express.Router();
 
-router.get("/create-test", async (req, res) => {
-  // ...
-});
-
 // Initialize NowPayments client
 const np = new NowPayments({ apiKey: process.env.NOWPAYMENTS_API_KEY });
 
-// Create payment endpoint (POST)
+/**
+ * Create a real payment (POST)
+ */
 router.post("/create", async (req, res) => {
   try {
     const { amount, currency, userId } = req.body;
@@ -27,7 +25,7 @@ router.post("/create", async (req, res) => {
     const payment = await np.createPayment({
       price_amount: amount,
       price_currency: "usd",
-      pay_currency: currency,
+      pay_currency: currency.toLowerCase(),
       order_id: `INV-${Date.now()}-${userId}`,
       order_description: `WealthRun Investment for User ${userId}`,
       ipn_callback_url:
@@ -44,37 +42,9 @@ router.post("/create", async (req, res) => {
   }
 });
 
-// ✅ Temporary GET route for testing in browser
-router.get("/create-test", async (req, res) => {
-  try {
-    const payment = await np.createPayment({
-      price_amount: 10, // fixed test amount
-      price_currency: "usd",
-      pay_currency: "BTC",
-      order_id: `TEST-${Date.now()}`,
-      order_description: "Test payment via browser GET route",
-      ipn_callback_url:
-        "https://wealthrun-backend.up.railway.app/api/payments/callback",
-    });
-
-    res.json({
-      payment_url: payment.invoice_url,
-      payment_id: payment.payment_id,
-    });
-  } catch (err) {
-    console.error("NOWPayments error:", err);
-    res.status(500).json({ error: "Failed to create payment (test)" });
-  }
-});
-
-// NOWPayments callback
-router.post("/callback", (req, res) => {
-  console.log("NOWPayments callback:", req.body);
-  // TODO: update user's investment in DB
-  res.sendStatus(200);
-});
-
-// ---- TEST PAYMENT (GET) ----
+/**
+ * Create a TEST payment (GET for debugging in browser)
+ */
 router.get("/create-test", async (req, res) => {
   try {
     const response = await fetch("https://api.nowpayments.io/v1/payment", {
@@ -84,17 +54,17 @@ router.get("/create-test", async (req, res) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        price_amount: 100,
+        price_amount: 10, // fixed test amount
         price_currency: "usd",
-        pay_currency: "btc", // test with Bitcoin
+        pay_currency: "btc",
         order_id: `TEST-${Date.now()}`,
         order_description: "WealthRun Test Payment",
+        ipn_callback_url:
+          "https://wealthrun-backend.up.railway.app/api/payments/callback",
       }),
     });
 
     const data = await response.json();
-
-    // ✅ Log the raw NOWPayments response
     console.log("NOWPayments create-test response:", data);
 
     if (!response.ok) {
@@ -107,12 +77,21 @@ router.get("/create-test", async (req, res) => {
     res.json({
       payment_url: data.invoice_url,
       payment_id: data.payment_id,
-      raw: data, // include everything for debugging
+      raw: data, // return full payload for debugging
     });
   } catch (err) {
     console.error("NOWPayments create-test failed:", err);
     res.status(500).json({ error: "Server error", details: err.message });
   }
+});
+
+/**
+ * Callback handler for NOWPayments IPN
+ */
+router.post("/callback", (req, res) => {
+  console.log("NOWPayments callback received:", req.body);
+  // TODO: update user’s investment/payment status in DB
+  res.sendStatus(200);
 });
 
 module.exports = router;

@@ -16,8 +16,8 @@ const app = express();
 app.use(helmet());
 
 app.use(cors({
-  origin: "*",// whitelist frontend URL
-  methods: "GET,POST,PUT,DELETE",
+  origin: ["https://wealthrun.vercel.app"],
+  methods: ["GET,POST,PUT,DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
@@ -46,7 +46,6 @@ const emailPreviewRoutes = require("./routes/emailPreview");
 
 app.use("/auth", authRoutes);
 app.use("/payments", paymentRoutes);
-app.use("/api/payments", paymentRoutes); // 👈 added alias route
 app.use("/withdrawals", withdrawalRoutes);
 app.use("/users", userRoutes);
 app.use("/preview", emailPreviewRoutes);
