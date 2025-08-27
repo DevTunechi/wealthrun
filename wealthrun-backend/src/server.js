@@ -1,3 +1,4 @@
+// backend/src/server.js
 const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
@@ -15,9 +16,14 @@ const app = express();
 // ------------------------
 app.use(helmet());
 
+// ✅ Allow requests from frontend domains
 app.use(cors({
-  origin: ["https://wealthrun.vercel.app"],
-  methods: ["GET,POST,PUT,DELETE"],
+  origin: [
+    "https://wealthrun.vercel.app",  // production frontend
+    "http://localhost:5173",         // Vite local dev
+    "http://localhost:3000"          // CRA local dev
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
@@ -44,11 +50,12 @@ const withdrawalRoutes = require("./routes/withdrawalRoutes");
 const userRoutes = require("./routes/userRoutes");
 const emailPreviewRoutes = require("./routes/emailPreview");
 
-app.use("/auth", authRoutes);
-app.use("/payments", paymentRoutes);
-app.use("/withdrawals", withdrawalRoutes);
-app.use("/users", userRoutes);
-app.use("/preview", emailPreviewRoutes);
+// ✅ Mount under /api namespace
+app.use("/api/auth", authRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/withdrawals", withdrawalRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/preview", emailPreviewRoutes);
 
 // ------------------------
 // Force HTTPS in production
@@ -65,5 +72,5 @@ app.use((req, res, next) => {
 // ------------------------
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
