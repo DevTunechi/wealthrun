@@ -31,14 +31,14 @@ model Wallet {
 }
 
 model Transaction {
-  id          Int       @id @default(autoincrement())
-  wallet      Wallet    @relation(fields: [walletId], references: [id])
-  walletId    Int
-  type        String    // "credit" or "debit"
-  crypto      String    // BTC, ETH, USDT, Pi
-  amount      Float
-  status      String    // pending, confirmed, failed
-  createdAt   DateTime  @default(now())
+  id        Int      @id @default(autoincrement())
+  wallet    Wallet   @relation(fields: [walletId], references: [id])
+  walletId  Int
+  type      String
+  crypto    String
+  amount    Float
+  status    String
+  createdAt DateTime @default(now())
 }
 
 model InvestmentPlan {
