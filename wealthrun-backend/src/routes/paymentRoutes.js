@@ -63,7 +63,7 @@ router.get("/create-test", async (req, res) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        price_amount: 10, // fixed test
+        price_amount: 100, // fixed test
         price_currency: "usd",
         pay_currency: "btc",
         order_id: `TEST-${Date.now()}`,

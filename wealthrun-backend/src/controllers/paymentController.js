@@ -1,16 +1,19 @@
 // controllers/paymentController.js
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
-const { auditTransaction } = require('../middleware/auditTrail');
-const { sendPaymentReceivedEmail } = require('../services/mailer');
+const { auditTransaction } = require("../middleware/auditTrail");
+const { sendPaymentReceivedEmail } = require("../services/mailer");
 
 // ------------------------
-// Create payment (DB record + NOWPayments invoice)
+// NOWPayments setup
 // ------------------------
 const NowPaymentsModule = require("@nowpaymentsio/nowpayments-api-js");
 const NowPayments = NowPaymentsModule.default || NowPaymentsModule;
 const np = new NowPayments({ apiKey: process.env.NOWPAYMENTS_API_KEY });
 
+// ------------------------
+// Create payment (DB record + NOWPayments invoice)
+// ------------------------
 const createPayment = async (req, res) => {
   try {
     const { userId, amount, currency } = req.body;
@@ -53,7 +56,7 @@ const createPayment = async (req, res) => {
 };
 
 // ------------------------
-// NOWPayments callback (auto update DB)
+// NOWPayments callback (auto update DB + credit wallet)
 // ------------------------
 const handleCallback = async (req, res) => {
   try {
@@ -62,7 +65,6 @@ const handleCallback = async (req, res) => {
       order_id,
       payment_status,
       pay_currency,
-      pay_amount,
       price_amount,
     } = req.body;
 
@@ -75,7 +77,7 @@ const handleCallback = async (req, res) => {
       status = "failed";
 
     // 1. Update existing DB record
-    const updated = await prisma.transaction.updateMany({
+    await prisma.transaction.updateMany({
       where: { txId: payment_id.toString(), type: "deposit" },
       data: {
         status,
@@ -84,7 +86,7 @@ const handleCallback = async (req, res) => {
       },
     });
 
-    // 2. Send email only if confirmed
+    // 2. If confirmed, credit wallet + send email + audit
     if (status === "confirmed") {
       const tx = await prisma.transaction.findFirst({
         where: { txId: payment_id.toString() },
@@ -92,6 +94,15 @@ const handleCallback = async (req, res) => {
       });
 
       if (tx?.user) {
+        // ✅ credit wallet balance
+        await prisma.wallet.update({
+          where: { userId: tx.userId },
+          data: {
+            balance: { increment: tx.amount },
+          },
+        });
+
+        // ✅ notify user
         await sendPaymentReceivedEmail(tx.user.email, {
           amount: tx.amount,
           asset: tx.crypto,
@@ -99,6 +110,7 @@ const handleCallback = async (req, res) => {
         });
       }
 
+      // ✅ audit log
       await auditTransaction(tx.userId, "deposit", {
         amount: tx.amount,
         crypto: tx.crypto,
