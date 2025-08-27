@@ -1,44 +1,116 @@
+// controllers/paymentController.js
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { auditTransaction } = require('../middleware/auditTrail');
 const { sendPaymentReceivedEmail } = require('../services/mailer');
 
 // ------------------------
-// Record a new payment
+// Create payment (DB record + NOWPayments invoice)
 // ------------------------
+const NowPaymentsModule = require("@nowpaymentsio/nowpayments-api-js");
+const NowPayments = NowPaymentsModule.default || NowPaymentsModule;
+const np = new NowPayments({ apiKey: process.env.NOWPAYMENTS_API_KEY });
+
 const createPayment = async (req, res) => {
   try {
-    const { userId, amount, asset, txId } = req.body;
+    const { userId, amount, currency } = req.body;
 
-    const payment = await prisma.transaction.create({
+    if (!userId || !amount || !currency) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // 1. Create NOWPayments invoice
+    const payment = await np.createPayment({
+      price_amount: amount,
+      price_currency: "usd",
+      pay_currency: currency.toLowerCase(),
+      order_id: `INV-${Date.now()}-${userId}`,
+      order_description: `WealthRun Investment for User ${userId}`,
+      ipn_callback_url:
+        "https://wealthrun-backend.up.railway.app/api/payments/callback",
+    });
+
+    // 2. Store pending record in DB
+    await prisma.transaction.create({
       data: {
         userId,
         amount,
-        crypto: asset,
-        txId,
+        crypto: currency.toLowerCase(),
+        txId: payment.payment_id.toString(),
         type: "deposit",
-        status: "confirmed",
+        status: "pending",
       },
-      include: { user: true },
     });
 
-    // Send payment received email
-    await sendPaymentReceivedEmail(payment.user.email, {
-      amount,
-      asset,
-      txId,
+    res.json({
+      payment_url: payment.invoice_url,
+      payment_id: payment.payment_id,
     });
-
-    await auditTransaction(userId, 'deposit', {
-      amount,
-      crypto: asset,
-      txId,
-      status: 'confirmed',
-    });
-
-    res.json({ message: "Payment recorded", payment });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("NOWPayments error:", err);
+    res.status(500).json({ error: "Failed to create payment" });
+  }
+};
+
+// ------------------------
+// NOWPayments callback (auto update DB)
+// ------------------------
+const handleCallback = async (req, res) => {
+  try {
+    const {
+      payment_id,
+      order_id,
+      payment_status,
+      pay_currency,
+      pay_amount,
+      price_amount,
+    } = req.body;
+
+    console.log("NOWPayments callback received:", req.body);
+
+    // Map NOWPayments status → local status
+    let status = "pending";
+    if (payment_status === "finished") status = "confirmed";
+    if (payment_status === "failed" || payment_status === "expired")
+      status = "failed";
+
+    // 1. Update existing DB record
+    const updated = await prisma.transaction.updateMany({
+      where: { txId: payment_id.toString(), type: "deposit" },
+      data: {
+        status,
+        amount: price_amount,
+        crypto: pay_currency,
+      },
+    });
+
+    // 2. Send email only if confirmed
+    if (status === "confirmed") {
+      const tx = await prisma.transaction.findFirst({
+        where: { txId: payment_id.toString() },
+        include: { user: true },
+      });
+
+      if (tx?.user) {
+        await sendPaymentReceivedEmail(tx.user.email, {
+          amount: tx.amount,
+          asset: tx.crypto,
+          txId: tx.txId,
+        });
+      }
+
+      await auditTransaction(tx.userId, "deposit", {
+        amount: tx.amount,
+        crypto: tx.crypto,
+        txId: tx.txId,
+        status: tx.status,
+      });
+    }
+
+    res.sendStatus(200);
+  } catch (err) {
+    console.error("Callback error:", err);
+    res.status(500).json({ error: "Callback processing failed" });
   }
 };
 
@@ -48,8 +120,9 @@ const createPayment = async (req, res) => {
 const listPayments = async (req, res) => {
   try {
     const payments = await prisma.transaction.findMany({
-      where: { type: 'deposit' },
+      where: { type: "deposit" },
       include: { user: true, wallet: true },
+      orderBy: { createdAt: "desc" },
     });
     res.json({ payments });
   } catch (err) {
@@ -57,4 +130,4 @@ const listPayments = async (req, res) => {
   }
 };
 
-module.exports = { createPayment, listPayments };
+module.exports = { createPayment, handleCallback, listPayments };
