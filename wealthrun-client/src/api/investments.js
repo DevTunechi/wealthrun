@@ -1,4 +1,7 @@
 // src/api/investments.js
+import axios from "axios";
+
+// ✅ Existing investment functions
 export async function fetchInvestmentSummary(userId) {
   const res = await fetch(
     `${process.env.REACT_APP_API_URL}/api/investments/${userId}`
@@ -37,14 +40,26 @@ export async function requestWithdrawal({ userId, amount, coin, address }) {
   return res.json();
 }
 
-// --------------------
-// Payments
-// --------------------
-import axios from "axios";
+// ✅ New Payment API integration
+export const createPayment = async ({ userId, amount, currency }) => {
+  try {
+    const res = await axios.post(
+      `${process.env.REACT_APP_API_URL}/api/payments/create`,
+      {
+        userId,
+        amount,
+        currency,
+      }
+    );
 
-export const createPayment = (data) => {
-  return axios.post(
-    `${process.env.REACT_APP_API_URL}/api/payments/create`,
-    data
-  );
+    if (res.data && res.data.payment_url) {
+      // ✅ redirect user to NOWPayments checkout
+      window.location.href = res.data.payment_url;
+    } else {
+      throw new Error("No payment URL received");
+    }
+  } catch (err) {
+    console.error("Payment creation failed:", err.response?.data || err.message);
+    throw err;
+  }
 };
