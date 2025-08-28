@@ -1,5 +1,5 @@
 // src/api/payments.js
-// Vite-friendly env var
+
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export async function createPayment(amount, currency, userId) {
@@ -7,12 +7,14 @@ export async function createPayment(amount, currency, userId) {
     const res = await fetch(`${BASE_URL}/api/payments/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include", // CORS + cookies
       body: JSON.stringify({
         amount,
         currency: currency.toUpperCase(),
         userId,
       }),
     });
+
     if (!res.ok) {
       const text = await res.text();
       throw new Error(text || "Failed to create payment");
@@ -27,7 +29,9 @@ export async function createPayment(amount, currency, userId) {
 // ✅ Temporary GET method for quick testing in browser/frontend
 export async function createTestPayment() {
   try {
-    const res = await fetch(`${BASE_URL}/api/payments/create-test`);
+    const res = await fetch(`${BASE_URL}/api/payments/create-test`, {
+      credentials: "include",
+    });
     if (!res.ok) {
       const text = await res.text();
       throw new Error(text || "Failed to create test payment");
