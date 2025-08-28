@@ -64,14 +64,15 @@ export default function InvestmentDetails() {
             $
             <CountUp start={0} end={600} duration={2.5} separator="," />
           </span>
-        </p>
-        <img
-          src={logoImg}
-          alt="Basic Plan"
-          className="w-6 h-6 rounded-full mt-4"
-        />
+            </p>
+        <div className="flex space-x-2 mt-4">
+          <img src={logoImg} alt="LOGO" className="w-6 h-4 rounded-full" />
+          <img src={btcImg} alt="BTC" className="w-6 h-4 rounded-full" />
+          <img src={ethImg} alt="ETH" className="w-6 h-4 rounded-full" />
+          <img src={usdtImg} alt="USDT" className="w-6 h-4 rounded-full" />
+        </div>
       </div>
-
+      
       {/* Plan 2 */}
       <div className="bg-gray-800 rounded-lg p-6 shadow-lg mb-8">
         <h2 className="text-2xl font-semibold text-yellow-400 mb-4">
@@ -93,11 +94,12 @@ export default function InvestmentDetails() {
             <CountUp start={0} end={3600} duration={2.5} separator="," />
           </span>
         </p>
-        <img
-          src={logoImg}
-          alt="Premium Plan"
-          className="w-6 h-4 rounded-full mt-4"
-        />
+        <div className="flex space-x-2 mt-4">
+          <img src={logoImg} alt="LOGO" className="w-6 h-4 rounded-full" />
+          <img src={btcImg} alt="BTC" className="w-6 h-4 rounded-full" />
+          <img src={ethImg} alt="ETH" className="w-6 h-4 rounded-full" />
+          <img src={usdtImg} alt="USDT" className="w-6 h-4 rounded-full" />
+        </div>
       </div>
 
       {/* How it Works */}
