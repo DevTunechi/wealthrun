@@ -16,17 +16,19 @@ const app = express();
 // ------------------------
 app.use(helmet());
 
-// ✅ Allow requests from frontend domains
 app.use(cors({
   origin: [
     "https://wealthrun.vercel.app",  // production frontend
     "http://localhost:5173",         // Vite local dev
     "http://localhost:3000"          // CRA local dev
   ],
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ include OPTIONS
+  allowedHeaders: ["Content-Type", "Authorization", "Accept"], // ✅ broader coverage
   credentials: true
 }));
+
+// ✅ Explicitly handle preflight everywhere
+app.options("*", cors());
 
 // ------------------------
 // Middleware
@@ -39,6 +41,10 @@ app.use(rateLimitMiddleware);
 // ------------------------
 app.get("/", (req, res) => {
   res.send("WealthRun Backend API is running...");
+});
+
+app.get("/api/test", (req, res) => {
+  res.json({ message: "CORS is working 🚀" });
 });
 
 // ------------------------
@@ -74,3 +80,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+module.exports = app;
