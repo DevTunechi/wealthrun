@@ -33,15 +33,8 @@ const PaymentInfoSection = () => {
           <a href="#" className="mt-4 inline-block underline text-yellow-400 hover:text-yellow-300">
             Read more
           </a>
-
-          {/* ✅ Add test payment button */}
-          <button
-            onClick={handleTestPayment}
-            className="mt-6 bg-yellow-500 text-black px-6 py-2 rounded-lg font-semibold hover:bg-yellow-400 transition"
-          >
-            Test Payment
-          </button>
         </div>
+
 
         {/* Right Content */}
         <div className="bg-black rounded-2xl p-6 shadow-lg space-y-4">

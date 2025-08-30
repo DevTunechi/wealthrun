@@ -4,6 +4,7 @@ import WalletInfo from "../components/WalletInfo";
 import React, { useState, useEffect, useCallback } from "react";
 import { logout } from "../services/firebase";
 import { useNavigate } from "react-router-dom";
+import InvestNow from "../components/InvestNow";
 import { createTestPayment } from "../api/payments";
 
 // Backend API helpers (Vite env expected: VITE_API_URL)
@@ -310,31 +311,33 @@ export default function Dashboard({ user }) {
     canceled: "text-red-500",
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center space-x-4">
-          {user?.photoURL && (
-            <img
-              src={user.photoURL}
-              alt="User Avatar"
-              className="w-20 h-20 rounded-full border-2 border-yellow-400"
-            />
-          )}
-          <h1 className="text-3xl font-bold text-yellow-400">
-            Welcome, {user?.displayName || user?.email || "Investor"}
-          </h1>
-        </div>
-        <button
-          onClick={refreshSummaryAndTransactions}
-          className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600"
-          disabled={loading}
-          title="Refresh balances & transactions"
-        >
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
+return (
+  <div className="min-h-screen bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8">
+    {/* Header */}
+    <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center space-x-4">
+        {user?.photoURL && (
+          <img
+            src={user.photoURL}
+            alt="User Avatar"
+            className="w-20 h-20 rounded-full border-2 border-yellow-400"
+          />
+        )}
+        <h1 className="text-3xl font-bold text-yellow-400">
+          Welcome, {user?.displayName || user?.email || "Investor"}
+        </h1>
       </div>
+      <button
+        onClick={refreshSummaryAndTransactions}
+        className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600"
+        disabled={loading}
+        title="Refresh balances & transactions"
+      >
+        {loading ? "Refreshing..." : "Refresh"}
+      </button>
+    </div>
+
+
 
       {/* Investment Plans (unchanged) */}
       <section className="grid md:grid-cols-2 gap-8 mb-10">
