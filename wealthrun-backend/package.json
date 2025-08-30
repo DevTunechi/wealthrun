@@ -27,6 +27,7 @@
     "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.2",
     "mjml": "^4.15.3",
+    "morgan": "^1.10.1",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.15",
     "nowpayments-api": "^1.0.1",

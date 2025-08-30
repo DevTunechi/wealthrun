@@ -1,6 +1,7 @@
 // src/routes/paymentRoutes.js
 const express = require("express");
 const fetch = require("node-fetch");
+const axios = require("axios");
 const { PrismaClient } = require("@prisma/client");
 
 // Helpers
@@ -18,8 +19,8 @@ const router = express.Router();
 const np = new NowPayments({ apiKey: process.env.NOWPAYMENTS_API_KEY });
 
 /**
- * @route   POST /api/payments/create
- * @desc    Create a real payment via NOWPayments
+ * @route POST /api/payments/create
+ * @desc Create a new payment invoice
  */
 router.post("/create", async (req, res) => {
   try {
@@ -29,30 +30,41 @@ router.post("/create", async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // ✅ Create payment with NOWPayments
-    const payment = await np.createPayment({
-      price_amount: amount,
-      price_currency: "usd", // investment base in USD
-      pay_currency: currency.toLowerCase(), // user-chosen coin
-      order_id: `INV-${Date.now()}-${userId}`,
-      order_description: `WealthRun Investment for User ${userId}`,
-      ipn_callback_url: `${process.env.BACKEND_URL}/api/payments/callback`,
-    });
+    // ✅ Create invoice via NOWPayments REST API (invoice_url = redirect link)
+    const response = await axios.post(
+      "https://api.nowpayments.io/v1/invoice",
+      {
+        price_amount: amount,
+        price_currency: "usd", // Always base in USD
+        pay_currency: currency.toLowerCase(), // User-chosen currency
+        order_id: `INV-${Date.now()}-${userId}`,
+        order_description: `WealthRun Investment for User ${userId}`,
+        ipn_callback_url: `${process.env.BACKEND_URL}/api/payments/callback`,
+        success_url: "https://wealthrun.vercel.app/dashboard",
+        cancel_url: "https://wealthrun.vercel.app/cancel",
+      },
+      {
+        headers: {
+          "x-api-key": process.env.NOWPAYMENTS_API_KEY,
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     res.json({
       success: true,
-      payment_url: payment.invoice_url,
-      payment_id: payment.payment_id,
+      payment_url: response.data.invoice_url,
+      payment_id: response.data.id,
     });
-  } catch (err) {
-    console.error("NOWPayments error (create):", err.response?.data || err.message);
-    res.status(500).json({ error: "Failed to create payment" });
+  } catch (error) {
+    console.error("NOWPayments create error:", error.response?.data || error.message);
+    return res.status(500).json({ error: "Could not create payment" });
   }
 });
 
 /**
- * @route   GET /api/payments/create-test
- * @desc    Quick test route for browser debugging
+ * @route GET /api/payments/create-test
+ * @desc Quick test route for browser debugging
  */
 router.get("/create-test", async (req, res) => {
   try {
@@ -63,7 +75,7 @@ router.get("/create-test", async (req, res) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        price_amount: 100, // fixed test
+        price_amount: 100,
         price_currency: "usd",
         pay_currency: "btc",
         order_id: `TEST-${Date.now()}`,
@@ -95,20 +107,22 @@ router.get("/create-test", async (req, res) => {
 });
 
 /**
- * @route   POST /api/payments/callback
- * @desc    Webhook handler for NOWPayments IPN
+ * @route POST /api/payments/callback
+ * @desc Webhook handler for NOWPayments IPN
  */
 router.post("/callback", async (req, res) => {
   try {
     console.log("📩 NOWPayments callback received:", req.body);
 
-    const {
-      payment_status,
-      pay_amount,
-      pay_currency,
-      order_id,
-      payment_id,
-    } = req.body;
+    // ✅ Optional: IPN Signature Verification (Extra Security)
+    const ipnSecret = process.env.NOWPAYMENTS_IPN_KEY;
+    const signature = req.headers["x-nowpayments-sig"];
+    if (ipnSecret && signature && signature !== ipnSecret) {
+      console.warn("⚠️ Invalid IPN signature, ignoring request.");
+      return res.status(403).json({ error: "Invalid IPN signature" });
+    }
+
+    const { payment_status, pay_amount, pay_currency, order_id, payment_id } = req.body;
 
     if (payment_status !== "finished" && payment_status !== "confirmed") {
       console.log(`ℹ️ Ignoring payment with status: ${payment_status}`);
@@ -136,7 +150,6 @@ router.post("/callback", async (req, res) => {
 
     // ✅ Create transaction + update balance atomically
     await prisma.$transaction(async (tx) => {
-      // Save transaction
       const payment = await tx.transaction.create({
         data: {
           userId,
@@ -149,14 +162,10 @@ router.post("/callback", async (req, res) => {
         include: { user: true },
       });
 
-      // Update investment balance
       await tx.investment.upsert({
         where: { userId },
         update: { balance: { increment: Number(pay_amount) } },
-        create: {
-          userId,
-          balance: Number(pay_amount),
-        },
+        create: { userId, balance: Number(pay_amount) },
       });
 
       // Notify user

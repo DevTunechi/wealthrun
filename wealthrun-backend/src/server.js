@@ -3,6 +3,7 @@ const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const morgan = require("morgan");
 
 const rateLimitMiddleware = require("./middleware/rateLimitMiddleware");
 require("./utils/cronJobs");
@@ -10,55 +11,53 @@ require("./utils/cronJobs");
 dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 5000;
 
 // ------------------------
-// Security headers & CORS
+// Security + Middleware
 // ------------------------
 app.use(helmet());
+app.use(morgan("dev")); // Logging for debugging
 
+// ✅ CORS configuration (frontend dev + prod)
 app.use(cors({
   origin: [
     "https://wealthrun.vercel.app",  // production frontend
     "http://localhost:5173",         // Vite local dev
     "http://localhost:3000"          // CRA local dev
   ],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ include OPTIONS
-  allowedHeaders: ["Content-Type", "Authorization", "Accept"], // ✅ broader coverage
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept"],
   credentials: true
 }));
 
-// ✅ Explicitly handle preflight everywhere
+// ✅ Handle preflight
 app.options("*", cors());
 
-// ------------------------
-// Middleware
-// ------------------------
+// JSON parsing + rate limiter
 app.use(express.json());
 app.use(rateLimitMiddleware);
 
 // ------------------------
-// Test route
+// Routes
 // ------------------------
 app.get("/", (req, res) => {
-  res.send("WealthRun Backend API is running...");
+  res.json({ status: "WealthRun backend is running ✅" });
 });
 
 app.get("/api/test", (req, res) => {
   res.json({ message: "CORS is working 🚀" });
 });
 
-// ------------------------
-// Routes
-// ------------------------
+// Import and mount routes
 const authRoutes = require("./routes/authRoutes");
-const paymentRoutes = require("./routes/paymentRoutes");
+const paymentRoutes = require("./routes/paymentRoutes"); // Keep existing
 const withdrawalRoutes = require("./routes/withdrawalRoutes");
 const userRoutes = require("./routes/userRoutes");
 const emailPreviewRoutes = require("./routes/emailPreview");
 
-// ✅ Mount under /api namespace
 app.use("/api/auth", authRoutes);
-app.use("/api/payments", paymentRoutes);
+app.use("/api/payments", paymentRoutes); // Payments route (keep existing)
 app.use("/api/withdrawals", withdrawalRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/preview", emailPreviewRoutes);
@@ -76,9 +75,8 @@ app.use((req, res, next) => {
 // ------------------------
 // Start server
 // ------------------------
-const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
 
 module.exports = app;
