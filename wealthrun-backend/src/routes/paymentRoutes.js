@@ -35,8 +35,8 @@ router.post("/create", async (req, res) => {
       "https://api.nowpayments.io/v1/invoice",
       {
         price_amount: amount,
-        price_currency: "usd", // Always base in USD
-        pay_currency: currency.toLowerCase(), // User-chosen currency
+        price_currency: currency.toLowerCase() || "usd", // fallback to usd
+        pay_currency: "btc", // default (can be changed later by user)
         order_id: `INV-${Date.now()}-${userId}`,
         order_description: `WealthRun Investment for User ${userId}`,
         ipn_callback_url: `${process.env.BACKEND_URL}/api/payments/callback`,
@@ -51,13 +51,15 @@ router.post("/create", async (req, res) => {
       }
     );
 
+    console.log("✅ NOWPayments create response:", response.data);
+
     res.json({
       success: true,
       payment_url: response.data.invoice_url,
       payment_id: response.data.id,
     });
   } catch (error) {
-    console.error("NOWPayments create error:", error.response?.data || error.message);
+    console.error("❌ NOWPayments create error:", error.response?.data || error.message);
     return res.status(500).json({ error: "Could not create payment" });
   }
 });
