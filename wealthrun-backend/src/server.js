@@ -11,13 +11,7 @@ require("./utils/cronJobs");
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
-
-// ------------------------
-// Security + Middleware
-// ------------------------
-app.use(helmet());
-app.use(morgan("dev")); // Logging for debugging
+const PORT = process.env.PORT || 8080;
 
 // ✅ CORS configuration (frontend dev + prod)
 app.use(cors({
@@ -33,6 +27,13 @@ app.use(cors({
 
 // ✅ Handle preflight
 app.options("*", cors());
+
+// ------------------------
+// Security + Middleware
+// ------------------------
+app.use(helmet());
+app.use(morgan("dev")); // Logging for debugging
+
 
 // JSON parsing + rate limiter
 app.use(express.json());
@@ -57,6 +58,7 @@ const userRoutes = require("./routes/userRoutes");
 const transactionRoutes = require("./routes/transactionRoutes");
 const emailPreviewRoutes = require("./routes/emailPreview");
 const setupRoutes = require('./routes/setupRoutes');
+const investmentRoutes = require("./routes/investmentRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/payments", paymentRoutes); // Payments route (keep existing)
@@ -65,6 +67,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/preview", emailPreviewRoutes);
 app.use('/api/setup', setupRoutes);
+app.use("/api/investments", investmentRoutes);
+
 
 // ------------------------
 // Force HTTPS in production
