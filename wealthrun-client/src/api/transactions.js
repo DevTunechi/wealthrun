@@ -1,5 +1,7 @@
-// src/api/transactions.js
-import api from "../services/api";
+import axios from "axios";
+
+// ✅ FIX: Use consistent BASE_URL
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export async function fetchTransactions(userId) {
   if (!userId) {
@@ -10,8 +12,13 @@ export async function fetchTransactions(userId) {
   console.log("📤 Fetching transactions for userId:", userId);
 
   try {
-    const res = await api.get(`/api/transactions/${userId}`);
-    return res.data;
+    // ✅ FIX: Use fetch and a correctly formed URL.
+    const res = await fetch(`${BASE_URL}/api/transactions/${userId}`, {
+      credentials: "include",
+    });
+
+    if (!res.ok) throw new Error("Failed to fetch transactions");
+    return res.json();
   } catch (error) {
     console.error("❌ Failed to fetch transactions:", error);
     return [];
