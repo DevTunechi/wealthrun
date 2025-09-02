@@ -58,15 +58,20 @@ router.post("/create", async (req, res) => {
       }
     );
 
+    // 🔹 Find user's wallet
+    const wallet = await prisma.wallet.findFirst({
+      where: { userId },
+    });
+
+    if (!wallet) {
+      return res.status(400).json({ error: "Wallet not found for user" });
+    }
+
     // 🔹 Save transaction record
     await prisma.transaction.create({
       data: {
-        // ❌ OLD: Prisma requires the 'connect' syntax for related records.
-        // userId,
-        // ✅ NEW: We use 'connect' to link this new transaction to the user.
-        user: {
-          connect: { id: userId },
-        },
+        user: { connect: { id: userId } },
+        wallet: { connect: { id: wallet.id } }, // ✅ attach wallet
         type: "investment",
         amount: Number(amount),
         crypto: coin,

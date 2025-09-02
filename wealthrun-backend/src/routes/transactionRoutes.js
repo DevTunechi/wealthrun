@@ -13,25 +13,21 @@ const getUserTransactions = async (req, res) => {
     const { userId } = req.params;
     console.log("📥 Incoming request for transactions:", userId);
 
-    if (!userId || typeof userId !== "string") {
-      return res
-        .status(400)
-        .json({ error: "Invalid userId. Must be a string." });
-    }
-
     const transactions = await prisma.transaction.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
       include: {
-        user: true,   // include user data if needed
-        wallet: true, // include wallet data if needed
+        user: true,
+        wallet: true,
       },
     });
 
     return res.json(transactions);
   } catch (err) {
-    console.error("❌ Transactions fetch error:", err);
-    return res.status(500).json({ error: "Failed to fetch transactions" });
+    console.error("❌ Transactions fetch error:", err); // <- log full error
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to fetch transactions" });
   }
 };
 
@@ -59,19 +55,17 @@ router.post("/", async (req, res) => {
         crypto,
         amount: parseFloat(amount),
         status,
-        wallet: {
-          connect: { id: walletId },
-        },
-        user: {
-          connect: { id: userId },
-        },
+        wallet: { connect: { id: walletId } },
+        user: { connect: { id: userId } },
       },
     });
 
     return res.status(201).json(newTransaction);
   } catch (err) {
     console.error("❌ Transaction creation error:", err);
-    return res.status(500).json({ error: "Failed to create transaction" });
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to create transaction" });
   }
 });
 

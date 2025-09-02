@@ -72,7 +72,26 @@ router.post(
 // ---------------------------
 // Investment summary (dashboard)
 // ---------------------------
-router.get("/summary/:userId", getInvestmentSummary);
+router.get("/summary/:userId", investmentController.getInvestmentSummary);
+  router.get("/summary/:userId", async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const summary = await prisma.userInvestment.aggregate({
+      where: { userId },
+      _sum: { amount: true },
+      _count: { id: true },
+    });
+
+    if (!summary) {
+      return res.status(404).json({ error: "No investments found for this user" });
+    }
+
+    res.json(summary);
+  } catch (error) {
+    console.error("❌ Investment summary error:", error);
+    res.status(500).json({ error: "Could not fetch investment summary" });
+  }
+});
 
 // ---------------------------
 // Get authenticated user's investment history
