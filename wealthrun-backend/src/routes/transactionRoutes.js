@@ -23,7 +23,7 @@ const getUserTransactions = async (req, res) => {
       where: { userId },
       orderBy: { createdAt: "desc" },
       include: {
-        user: true, // include user data if needed
+        user: true,   // include user data if needed
         wallet: true, // include wallet data if needed
       },
     });
@@ -59,11 +59,9 @@ router.post("/", async (req, res) => {
         crypto,
         amount: parseFloat(amount),
         status,
-        // ✅ Link this transaction to the correct wallet
         wallet: {
           connect: { id: walletId },
         },
-        // ✅ Optionally link to user if your schema supports it
         user: {
           connect: { id: userId },
         },

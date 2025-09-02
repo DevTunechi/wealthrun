@@ -7,7 +7,7 @@ const { auth } = require("../middleware/authMiddleware");
 const { body } = require("express-validator");
 const { validateRequest } = require("../middleware/inputSanitize");
 
-const { getInvestmentSummary } = require("../controllers/investmentController");
+const { getInvestmentSummary } = require("../controllers/investmentController.js");
 
 // ---------------------------
 // Create new investment
