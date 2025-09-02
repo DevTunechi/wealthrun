@@ -6,12 +6,12 @@ import { logout } from "../services/firebase";
 import { useNavigate } from "react-router-dom";
 import InvestNow from "../components/InvestNow";
 import { createTestPayment } from "../api/payments";
+import { fetchTransactions } from "../api/transactions";
 
 // Backend API helpers (Vite env expected: VITE_API_URL)
 import { createPayment } from "../api/payments";
 import {
   fetchInvestmentSummary,
-  fetchTransactions,
   requestWithdrawal,
 } from "../api/investments";
 
@@ -60,7 +60,7 @@ export default function Dashboard({ user }) {
   // ---- Local UI helpers ----
   const [showWallet, setShowWallet] = useState(false);
   const [investmentConfirmed, setInvestmentConfirmed] = useState(false);
-
+  
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawWallet, setWithdrawWallet] = useState("");
   const [withdrawError, setWithdrawError] = useState("");
@@ -68,6 +68,15 @@ export default function Dashboard({ user }) {
 
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+  if (user?.id) {
+    setLoading(true);
+    fetchTransactions(user.id)
+      .then((data) => setTransactions(data))
+      .finally(() => setLoading(false));
+  }
+  }, [user]);
 
   // ---- Prices (unchanged) ----
   useEffect(() => {
@@ -554,60 +563,68 @@ return (
       {/* Wallet Info Section (unchanged) */}
       <WalletInfo />
 
-      {/* Transaction History (now wired) */}
-      <section className="mt-12 max-w-4xl mx-auto bg-gray-900 bg-opacity-70 rounded-lg p-6 shadow-lg">
-        <h2 className="text-yellow-400 text-2xl font-bold mb-4">
-          Transaction History
-        </h2>
-        {!transactions || transactions.length === 0 ? (
-          <p className="text-gray-300">No transactions yet.</p>
-        ) : (
-          <table className="w-full text-left text-white">
-            <thead>
-              <tr>
-                <th className="border-b border-yellow-600 pb-2">Type</th>
-                <th className="border-b border-yellow-600 pb-2">Amount</th>
-                <th className="border-b border-yellow-600 pb-2">Coin</th>
-                <th className="border-b border-yellow-600 pb-2">Date</th>
-                <th className="border-b border-yellow-600 pb-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((tx, idx) => {
-                const {
-                  id,
-                  type,
-                  amount,
-                  currency: txCurrency = "USD",
-                  coin,
-                  date,
-                  status,
-                } = tx;
-                return (
-                  <tr key={id || idx} className="border-b border-gray-700">
-                    <td className="py-2 capitalize">{type}</td>
-                    <td className="py-2">
-                      {currencySymbols[txCurrency] || ""}{" "}
-                      {Number(amount).toFixed(2)}
-                    </td>
-                    <td className="py-2">
-                      {coin ? coinSymbols[coin.toLowerCase()] || coin : "-"}
-                    </td>
-                    <td className="py-2">{formatDate(date)}</td>
-                    <td
-                      className={`py-2 font-semibold ${
-                        statusColors[status?.toLowerCase()] || "text-gray-400"
-                      }`}
-                    >
-                      {status || "—"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </section>
+      {/* Transaction History */}
+<section className="mt-12 max-w-4xl mx-auto bg-gray-900 bg-opacity-70 rounded-lg p-6 shadow-lg">
+  <h2 className="text-yellow-400 text-2xl font-bold mb-4">
+    Transaction History
+  </h2>
+
+  {loading ? (
+    <p className="text-gray-400">Loading transactions...</p>
+  ) : !transactions || transactions.length === 0 ? (
+    <p className="text-gray-300">No transactions yet.</p>
+  ) : (
+    <table className="w-full text-left text-white">
+      <thead>
+        <tr>
+          <th className="border-b border-yellow-600 pb-2">Type</th>
+          <th className="border-b border-yellow-600 pb-2">Amount</th>
+          <th className="border-b border-yellow-600 pb-2">Coin</th>
+          <th className="border-b border-yellow-600 pb-2">Date</th>
+          <th className="border-b border-yellow-600 pb-2">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {transactions.map((tx, idx) => {
+          const {
+            id,
+            type,
+            amount,
+            crypto: coin,
+            createdAt,
+            status,
+          } = tx;
+          return (
+            <tr key={id || idx} className="border-b border-gray-700">
+              <td className="py-2 capitalize">{type}</td>
+              <td className="py-2">
+                ${Number(amount).toFixed(2)}
+              </td>
+              <td className="py-2">
+                {coin ? coin.toUpperCase() : "-"}
+              </td>
+              <td className="py-2">
+                {new Date(createdAt).toLocaleDateString()}
+              </td>
+              <td
+                className={`py-2 font-semibold ${
+                  status === "confirmed"
+                    ? "text-green-400"
+                    : status === "pending"
+                    ? "text-yellow-400"
+                    : "text-red-400"
+                }`}
+              >
+                {status}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  )}
+</section>
+
 
       {/* Support Center (unchanged) */}
       <div className="min-h-screen bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8">

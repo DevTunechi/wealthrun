@@ -19,7 +19,7 @@ export default function SupportCenter() {
       <section>
         <h3 className="font-semibold mb-2">Need More Help?</h3>
         <p className="mb-4 text-gray-300">
-          For live chat support, click the button below or email support@wealthrun.com
+          For live chat support, click the button below or email wealthruninfo@gmail.com
         </p>
         <button
           onClick={() => alert("Live chat coming soon!")}
