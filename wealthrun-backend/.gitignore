@@ -49,3 +49,4 @@ out/
 # Docker
 docker-compose.override.yml
 Dockerfile
+.vercel

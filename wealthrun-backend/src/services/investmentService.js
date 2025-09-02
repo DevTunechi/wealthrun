@@ -19,6 +19,8 @@ const createInvestment = async (userId, planId, amount) => {
 
 // Monthly ROI calculation
 const creditROI = async () => {
+  // NOTE: Your Prisma model is likely called 'UserInvestment'.
+  // This uses `findMany` correctly to get all active investments.
   const activeInvestments = await prisma.userInvestment.findMany({
     where: { status: "active" },
     include: { plan: true, user: true }
@@ -26,7 +28,13 @@ const creditROI = async () => {
 
   for (const inv of activeInvestments) {
     const roi = (inv.amount * inv.plan.roiPercent) / 100;
-    await creditWallet(inv.userId, 'usdt', roi); // example: credit ROI in USDT
+    // This call assumes the 'creditWallet' service exists and is working correctly.
+    await creditWallet(inv.userId, 'btc', roi); // example: credit ROI in BTC
+    
+    // ❌ OLD: The `where` clause used `userId`, which is not a unique identifier for an investment.
+    // await prisma.userInvestment.update({ where: { userId }, data: { lastCredited: new Date() } });
+
+    // ✅ NEW: Update the specific investment record from the loop using its unique `id`.
     await prisma.userInvestment.update({
       where: { id: inv.id },
       data: { lastCredited: new Date() }

@@ -54,13 +54,17 @@ const authRoutes = require("./routes/authRoutes");
 const paymentRoutes = require("./routes/paymentRoutes"); // Keep existing
 const withdrawalRoutes = require("./routes/withdrawalRoutes");
 const userRoutes = require("./routes/userRoutes");
+const transactionRoutes = require("./routes/transactionRoutes");
 const emailPreviewRoutes = require("./routes/emailPreview");
+const setupRoutes = require('./routes/setupRoutes');
 
 app.use("/api/auth", authRoutes);
 app.use("/api/payments", paymentRoutes); // Payments route (keep existing)
 app.use("/api/withdrawals", withdrawalRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/transactions", transactionRoutes);
 app.use("/api/preview", emailPreviewRoutes);
+app.use('/api/setup', setupRoutes);
 
 // ------------------------
 // Force HTTPS in production

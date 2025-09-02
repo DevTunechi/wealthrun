@@ -1,0 +1,88 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String         @id @default(cuid())
+  firebaseUid  String?        @unique
+  name         String
+  email        String         @unique
+  password     String?
+  role         String         @default("user")
+  wallet       Wallet?
+  investments  UserInvestment[]
+  transactions Transaction[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model Wallet {
+  id           String        @id @default(cuid())
+  user         User          @relation(fields: [userId], references: [id])
+  userId       String        @unique
+  btcBalance   Float         @default(0)
+  ethBalance   Float         @default(0)
+  usdtBalance  Float         @default(0)
+  piBalance    Float         @default(0)
+  transactions Transaction[]
+}
+
+model Transaction {
+  id        String  @id @default(cuid())
+  user      User    @relation(fields: [userId], references: [id])
+  // ✅ FIX: userId must be a String to match the User.id
+  userId    String
+  wallet    Wallet  @relation(fields: [walletId], references: [id])
+  // ✅ Note: walletId is a String, matching Wallet.id
+  walletId  String
+  type      String
+  crypto    String?
+  amount    Float
+  status    String
+  createdAt DateTime @default(now())
+}
+
+model InvestmentPlan {
+  id           Int            @id @default(autoincrement())
+  name         String         @unique
+  description  String?
+  minAmount    Float
+  maxAmount    Float
+  roiPercent   Float
+  durationDays Int
+  investments  UserInvestment[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model UserInvestment {
+  id           Int            @id @default(autoincrement())
+  user         User           @relation(fields: [userId], references: [id])
+  userId       String
+  plan         InvestmentPlan @relation(fields: [planId], references: [id])
+  planId       Int
+  amount       Float
+  startDate    DateTime       @default(now())
+  lastCredited DateTime?
+  status       String         @default("active")
+}
+
+model MarketSnapshot {
+  id        Int      @id @default(autoincrement())
+  crypto    String
+  price     Float
+  timestamp DateTime @default(now())
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+}

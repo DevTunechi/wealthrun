@@ -1,4 +1,3 @@
-// controllers/paymentController.js
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const { auditTransaction } = require("../middleware/auditTrail");
@@ -36,7 +35,12 @@ const createPayment = async (req, res) => {
     // 2. Store pending record in DB
     await prisma.transaction.create({
       data: {
-        userId,
+        // ❌ OLD: Prisma requires the 'connect' syntax for related records.
+        // userId,
+        // ✅ NEW: We use 'connect' to link this new transaction to the user.
+        user: {
+          connect: { id: userId },
+        },
         amount,
         crypto: currency.toLowerCase(),
         txId: payment.payment_id.toString(),

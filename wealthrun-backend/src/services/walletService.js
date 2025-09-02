@@ -5,41 +5,65 @@ const creditWallet = async (userId, crypto, amount) => {
   const wallet = await prisma.wallet.findUnique({ where: { userId } });
   if (!wallet) throw new Error("Wallet not found");
 
-  // Update balance
+  // ✅ FIX: Use Prisma's `increment` to perform an atomic update.
+  // This prevents race conditions where simultaneous updates could overwrite each other.
   const field = crypto.toLowerCase() + "Balance"; // e.g., btcBalance
-  wallet[field] += amount;
 
-  await prisma.wallet.update({
+  const updatedWallet = await prisma.wallet.update({
     where: { userId },
-    data: { [field]: wallet[field] },
+    data: {
+      [field]: {
+        increment: amount
+      }
+    },
   });
 
-  // Record transaction
+  // ✅ FIX: Use the `connect` syntax to correctly link the transaction to the wallet.
   await prisma.transaction.create({
-    data: { walletId: wallet.id, type: "credit", crypto, amount, status: "confirmed" }
+    data: {
+      wallet: {
+        connect: { id: wallet.id }
+      },
+      type: "credit",
+      crypto,
+      amount,
+      status: "confirmed"
+    }
   });
 
-  return wallet;
+  return updatedWallet;
 };
 
 const debitWallet = async (userId, crypto, amount) => {
   const wallet = await prisma.wallet.findUnique({ where: { userId } });
   const field = crypto.toLowerCase() + "Balance";
 
-  if (wallet[field] < amount) throw new Error("Insufficient balance");
+  if (!wallet || wallet[field] < amount) throw new Error("Insufficient balance or wallet not found");
 
-  wallet[field] -= amount;
-
-  await prisma.wallet.update({
+  // ✅ FIX: Use Prisma's `decrement` for a safe, atomic subtraction.
+  const updatedWallet = await prisma.wallet.update({
     where: { userId },
-    data: { [field]: wallet[field] },
+    data: {
+      [field]: {
+        decrement: amount
+      }
+    },
   });
 
+  // ✅ FIX: Use the `connect` syntax to correctly link the transaction to the wallet.
   await prisma.transaction.create({
-    data: { walletId: wallet.id, type: "debit", crypto, amount, status: "pending" }
+    data: {
+      wallet: {
+        connect: { id: wallet.id }
+      },
+      type: "debit",
+      crypto,
+      amount,
+      status: "pending"
+    }
   });
 
-  return wallet;
+  return updatedWallet;
 };
 
 module.exports = { creditWallet, debitWallet };

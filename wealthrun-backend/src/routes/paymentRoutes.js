@@ -1,43 +1,50 @@
-// src/routes/paymentRoutes.js
 const express = require("express");
-const fetch = require("node-fetch");
 const axios = require("axios");
 const { PrismaClient } = require("@prisma/client");
-
-// Helpers
 const { auditTransaction } = require("../middleware/auditTrail");
 const { sendPaymentReceivedEmail } = require("../services/mailer");
 
-// NOWPayments SDK
-const NowPaymentsModule = require("@nowpaymentsio/nowpayments-api-js");
-const NowPayments = NowPaymentsModule.default || NowPaymentsModule;
-
-const prisma = new PrismaClient();
 const router = express.Router();
-
-// ✅ Initialize NowPayments client
-const np = new NowPayments({ apiKey: process.env.NOWPAYMENTS_API_KEY });
+const prisma = new PrismaClient();
 
 /**
- * @route POST /api/payments/create
- * @desc Create a new payment invoice
+ * ✅ Create Invoice Route
+ * - Users enter amount + choose coin (BTC, ETH, USDT, etc.)
+ * - Backend auto-determines plan
+ * - Invoices in USD, pays in selected coin
  */
 router.post("/create", async (req, res) => {
   try {
-    const { amount, currency, userId } = req.body;
+    console.log("Incoming Payment Request:", req.body);
+    const { amount, coin, userId } = req.body;
 
-    if (!amount || !currency || !userId) {
+    if (!amount || !coin || !userId) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // ✅ Create invoice via NOWPayments REST API (invoice_url = redirect link)
+    // 🔹 Auto-determine plan based on amount
+    const plan = await prisma.investmentPlan.findFirst({
+      where: {
+        minAmount: { lte: amount },
+        maxAmount: { gte: amount },
+      },
+    });
+
+    if (!plan) {
+      return res.status(400).json({ error: "No valid plan for this amount" });
+    }
+
+    // 🔹 Create unique orderId
+    const orderId = `INV-${Date.now()}-${userId}-${plan.id}`;
+
+    // 🔹 Call NOWPayments API
     const response = await axios.post(
       "https://api.nowpayments.io/v1/invoice",
       {
         price_amount: amount,
-        price_currency: currency.toLowerCase() || "usd", // fallback to usd
-        pay_currency: "btc", // default (can be changed later by user)
-        order_id: `INV-${Date.now()}-${userId}`,
+        price_currency: "usd", // Always USD
+        pay_currency: coin, // User-selected coin
+        order_id: orderId,
         order_description: `WealthRun Investment for User ${userId}`,
         ipn_callback_url: `${process.env.BACKEND_URL}/api/payments/callback`,
         success_url: "https://wealthrun.vercel.app/dashboard",
@@ -51,12 +58,31 @@ router.post("/create", async (req, res) => {
       }
     );
 
+    // 🔹 Save transaction record
+    await prisma.transaction.create({
+      data: {
+        // ❌ OLD: Prisma requires the 'connect' syntax for related records.
+        // userId,
+        // ✅ NEW: We use 'connect' to link this new transaction to the user.
+        user: {
+          connect: { id: userId },
+        },
+        type: "investment",
+        amount: Number(amount),
+        crypto: coin,
+        txId: response.data.id.toString(),
+        status: "pending",
+        metadata: { planId: plan.id },
+      },
+    });
+
     console.log("✅ NOWPayments create response:", response.data);
 
-    res.json({
+    return res.json({
       success: true,
-      payment_url: response.data.invoice_url,
+      invoice_url: response.data.invoice_url,
       payment_id: response.data.id,
+      selected_plan: plan,
     });
   } catch (error) {
     console.error("❌ NOWPayments create error:", error.response?.data || error.message);
@@ -65,131 +91,88 @@ router.post("/create", async (req, res) => {
 });
 
 /**
- * @route GET /api/payments/create-test
- * @desc Quick test route for browser debugging
- */
-router.get("/create-test", async (req, res) => {
-  try {
-    const response = await fetch("https://api.nowpayments.io/v1/payment", {
-      method: "POST",
-      headers: {
-        "x-api-key": process.env.NOWPAYMENTS_API_KEY,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        price_amount: 100,
-        price_currency: "usd",
-        pay_currency: "btc",
-        order_id: `TEST-${Date.now()}`,
-        order_description: "WealthRun Test Payment",
-        ipn_callback_url: `${process.env.BACKEND_URL}/api/payments/callback`,
-      }),
-    });
-
-    const data = await response.json();
-    console.log("NOWPayments create-test response:", data);
-
-    if (!response.ok) {
-      return res.status(response.status).json({
-        error: "NOWPayments error",
-        details: data,
-      });
-    }
-
-    res.json({
-      success: true,
-      payment_url: data.invoice_url,
-      payment_id: data.payment_id,
-      raw: data,
-    });
-  } catch (err) {
-    console.error("NOWPayments create-test failed:", err.message);
-    res.status(500).json({ error: "Server error", details: err.message });
-  }
-});
-
-/**
- * @route POST /api/payments/callback
- * @desc Webhook handler for NOWPayments IPN
+ * ✅ IPN Callback (NOWPayments → WealthRun)
+ * - Confirms the payment
+ * - Activates investment & credits wallet
  */
 router.post("/callback", async (req, res) => {
   try {
     console.log("📩 NOWPayments callback received:", req.body);
 
-    // ✅ Optional: IPN Signature Verification (Extra Security)
-    const ipnSecret = process.env.NOWPAYMENTS_IPN_KEY;
-    const signature = req.headers["x-nowpayments-sig"];
-    if (ipnSecret && signature && signature !== ipnSecret) {
-      console.warn("⚠️ Invalid IPN signature, ignoring request.");
-      return res.status(403).json({ error: "Invalid IPN signature" });
-    }
-
-    const { payment_status, pay_amount, pay_currency, order_id, payment_id } = req.body;
+    const {
+      payment_status,
+      price_amount,
+      price_currency,
+      payment_currency, // Coin used for payment
+      order_id,
+      payment_id,
+    } = req.body;
 
     if (payment_status !== "finished" && payment_status !== "confirmed") {
       console.log(`ℹ️ Ignoring payment with status: ${payment_status}`);
       return res.sendStatus(200);
     }
 
-    // ✅ Extract userId from order_id (format: INV-timestamp-userId)
+    // 🔹 Extract userId + planId
     const parts = order_id.split("-");
-    const userId = parseInt(parts[2]);
+    const userId = parts[parts.length - 2];
+    const planId = parseInt(parts[parts.length - 1]);
 
-    if (!userId) {
-      console.error("❌ Could not extract userId from order_id:", order_id);
+    if (!userId || !planId) {
+      console.error("❌ Invalid order_id format:", order_id);
       return res.status(400).json({ error: "Invalid order_id format" });
     }
 
-    // ✅ Check if transaction already exists
-    const existingTx = await prisma.transaction.findUnique({
-      where: { txId: payment_id.toString() },
-    });
-
-    if (existingTx) {
-      console.log(`⚠️ Duplicate callback ignored for txId: ${payment_id}`);
-      return res.sendStatus(200);
-    }
-
-    // ✅ Create transaction + update balance atomically
     await prisma.$transaction(async (tx) => {
-      const payment = await tx.transaction.create({
+      // ✅ Mark transaction confirmed
+      await tx.transaction.update({
+        where: { txId: payment_id.toString() },
+        data: { status: "confirmed" },
+      });
+
+      // ✅ Create investment record
+      const investment = await tx.userInvestment.create({
         data: {
           userId,
-          amount: Number(pay_amount),
-          crypto: pay_currency,
-          txId: payment_id.toString(),
-          type: "deposit",
-          status: "confirmed",
+          planId,
+          amount: Number(price_amount),
+          status: "active",
+          startDate: new Date(),
         },
-        include: { user: true },
       });
 
-      await tx.investment.upsert({
+      // ✅ Update wallet balance
+      await tx.wallet.update({
         where: { userId },
-        update: { balance: { increment: Number(pay_amount) } },
-        create: { userId, balance: Number(pay_amount) },
+        data: { balance: { increment: Number(price_amount) } },
       });
 
-      // Notify user
-      await sendPaymentReceivedEmail(payment.user.email, {
-        amount: pay_amount,
-        asset: pay_currency,
-        txId: payment_id,
-      });
+      // ✅ Notify user
+      const user = await tx.user.findUnique({ where: { id: userId } });
+      if (user) {
+        await sendPaymentReceivedEmail(user.email, {
+          amount: price_amount,
+          asset: payment_currency,
+          txId: payment_id,
+        });
+      }
 
-      // Audit log
-      await auditTransaction(userId, "deposit", {
-        amount: pay_amount,
-        crypto: pay_currency,
+      // ✅ Audit
+      await auditTransaction(userId, "investment", {
+        amount: price_amount,
+        crypto: payment_currency,
         txId: payment_id,
         status: "confirmed",
+        planId,
+        investmentId: investment.id,
       });
     });
 
-    res.sendStatus(200);
+    console.log(`💰 User ${userId} invested ${price_amount} ${payment_currency} in plan ${planId}`);
+    return res.sendStatus(200);
   } catch (err) {
     console.error("❌ Callback error:", err.message);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
