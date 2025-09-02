@@ -7,8 +7,6 @@ const { auth } = require("../middleware/authMiddleware");
 const { body } = require("express-validator");
 const { validateRequest } = require("../middleware/inputSanitize");
 
-const { getInvestmentSummary } = require("../controllers/investmentController.js");
-
 // ---------------------------
 // Create new investment
 // ---------------------------
@@ -72,8 +70,7 @@ router.post(
 // ---------------------------
 // Investment summary (dashboard)
 // ---------------------------
-router.get("/summary/:userId", investmentController.getInvestmentSummary);
-  router.get("/summary/:userId", async (req, res) => {
+router.get("/summary/:userId", async (req, res) => {
   const { userId } = req.params;
   try {
     const summary = await prisma.userInvestment.aggregate({
@@ -82,11 +79,10 @@ router.get("/summary/:userId", investmentController.getInvestmentSummary);
       _count: { id: true },
     });
 
-    if (!summary) {
-      return res.status(404).json({ error: "No investments found for this user" });
-    }
-
-    res.json(summary);
+    res.json({
+      totalInvested: summary._sum.amount || 0,
+      count: summary._count.id || 0,
+    });
   } catch (error) {
     console.error("❌ Investment summary error:", error);
     res.status(500).json({ error: "Could not fetch investment summary" });
