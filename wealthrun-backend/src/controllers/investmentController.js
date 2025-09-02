@@ -1,6 +1,6 @@
+// backend/src/controllers/investmentController.js
 const { createInvestment } = require("../services/investmentService");
 const { PrismaClient } = require("@prisma/client");
-
 const prisma = new PrismaClient();
 
 /**
@@ -25,12 +25,10 @@ const invest = async (req, res) => {
  */
 const getHistory = async (req, res) => {
   try {
-    // Note: If your Prisma schema model is named "UserInvestment",
-    // you should use `prisma.userInvestment.findMany` here.
-    const investments = await prisma.investment.findMany({
-      where: { userId: req.user.userId },
+    const investments = await prisma.userInvestment.findMany({
+      where: { userId: req.user.userId }, // ✅ userId is String in schema
       include: { plan: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: { startDate: "desc" }, // ✅ field exists in schema
     });
 
     res.json({ investments });
@@ -52,10 +50,8 @@ const getInvestmentById = async (req, res) => {
       return res.status(400).json({ message: "Investment ID is required." });
     }
 
-    // ✅ FIX: `findUnique` should use the unique ID from the route params,
-    // not a potentially non-existent `userId` variable.
-    const investment = await prisma.investment.findUnique({
-      where: { id: parseInt(id) }, // Make sure to parse the string ID to an integer
+    const investment = await prisma.userInvestment.findUnique({
+      where: { id: parseInt(id) }, // ✅ id is Int in schema
       include: { plan: true, user: true },
     });
 
@@ -70,4 +66,34 @@ const getInvestmentById = async (req, res) => {
   }
 };
 
-module.exports = { invest, getHistory, getInvestmentById };
+/**
+ * @desc Get summarized investments for dashboard
+ * @route GET /api/investments/summary/:userId
+ */
+const getInvestmentSummary = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const investments = await prisma.userInvestment.findMany({
+      where: { userId }, // ✅ userId is String (not Int)
+    });
+
+    const totalInvested = investments.reduce((sum, inv) => sum + inv.amount, 0);
+
+    res.json({
+      userId,
+      totalInvested,
+      count: investments.length,
+    });
+  } catch (err) {
+    console.error("❌ Error fetching investment summary:", err.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+module.exports = {
+  invest,
+  getHistory,
+  getInvestmentById,
+  getInvestmentSummary,
+};

@@ -1,3 +1,4 @@
+// backend/src/routes/transactionRoutes.js
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
 
@@ -5,10 +6,9 @@ const prisma = new PrismaClient();
 const router = express.Router();
 
 /**
- * ✅ Get all transactions for a specific user
- * Expects :userId (String) as a route param
+ * @desc Controller to get all transactions for a specific user
  */
-router.get("/:userId", async (req, res) => {
+const getUserTransactions = async (req, res) => {
   try {
     const { userId } = req.params;
     console.log("📥 Incoming request for transactions:", userId);
@@ -19,15 +19,12 @@ router.get("/:userId", async (req, res) => {
         .json({ error: "Invalid userId. Must be a string." });
     }
 
-    // ✅ Fetch transactions linked to this user
-    // NOTE: This will only work if your Prisma schema's 'Transaction' model has a 'userId' field.
-    // Make sure you've run 'npx prisma db push' to sync your schema with the database.
     const transactions = await prisma.transaction.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
       include: {
-        user: true, // optional: include user data if needed
-        wallet: true, // optional: include wallet data if needed
+        user: true, // include user data if needed
+        wallet: true, // include wallet data if needed
       },
     });
 
@@ -36,11 +33,17 @@ router.get("/:userId", async (req, res) => {
     console.error("❌ Transactions fetch error:", err);
     return res.status(500).json({ error: "Failed to fetch transactions" });
   }
-});
+};
+
+/**
+ * ✅ Route to get all transactions for a specific user
+ * GET /api/transactions/:userId
+ */
+router.get("/:userId", getUserTransactions);
 
 /**
  * ✅ Create a new transaction
- * (Optional route if you want to create transactions from API)
+ * POST /api/transactions
  */
 router.post("/", async (req, res) => {
   try {
@@ -50,18 +53,19 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // ❌ OLD: The `walletId` field is a foreign key, but Prisma requires a nested write
-    // for relations. You cannot simply pass the `walletId` as a scalar field here.
     const newTransaction = await prisma.transaction.create({
       data: {
         type,
         crypto,
         amount: parseFloat(amount),
         status,
-        // ✅ NEW: Use the 'connect' syntax to link this new transaction
-        // to an existing wallet record.
+        // ✅ Link this transaction to the correct wallet
         wallet: {
           connect: { id: walletId },
+        },
+        // ✅ Optionally link to user if your schema supports it
+        user: {
+          connect: { id: userId },
         },
       },
     });
