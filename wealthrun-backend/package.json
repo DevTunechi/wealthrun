@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate --schema=src/prisma/schema.prisma",
     "prisma:migrate": "prisma migrate deploy --schema=src/prisma/schema.prisma",
     "prisma:studio": "prisma studio --schema=src/prisma/schema.prisma",
-    "seed": "node src/prisma/seed.js"
+    "seed": "node src/prisma/seed.js",
+    "sync:wallets": "node scripts/createWallets.js"
   },
   "keywords": [
     "express",

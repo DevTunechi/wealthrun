@@ -67,7 +67,10 @@ router.post("/create", async (req, res) => {
       wallet = await prisma.wallet.create({
         data: {
           userId,
-          balance: 0, // start empty
+          btcBalance: 0,
+          ethBalance: 0,
+          usdtBalance: 0,
+          piBalance: 0,
         },
       });
       console.log(`🆕 Wallet created for user ${userId}`);
@@ -96,7 +99,10 @@ router.post("/create", async (req, res) => {
       selected_plan: plan,
     });
   } catch (error) {
-    console.error("❌ NOWPayments create error:", error.response?.data || error.message);
+    console.error(
+      "❌ NOWPayments create error:",
+      error.response?.data || error.message
+    );
     return res.status(500).json({ error: "Could not create payment" });
   }
 });
@@ -135,18 +141,21 @@ router.post("/callback", async (req, res) => {
     }
 
     await prisma.$transaction(async (tx) => {
-       // ✅ Ensure wallet exists
+      // ✅ Ensure wallet exists
       let wallet = await tx.wallet.findFirst({ where: { userId } });
       if (!wallet) {
         wallet = await tx.wallet.create({
           data: {
             userId,
-            balance: 0,
+            btcBalance: 0,
+            ethBalance: 0,
+            usdtBalance: 0,
+            piBalance: 0,
           },
         });
         console.log(`🆕 Wallet auto-created for user ${userId} in callback`);
       }
-      
+
       // ✅ Mark transaction confirmed
       await tx.transaction.update({
         where: { txId: payment_id.toString() },
@@ -164,10 +173,23 @@ router.post("/callback", async (req, res) => {
         },
       });
 
+      // ✅ Coin → Wallet field map
+      const coinFieldMap = {
+        btc: "btcBalance",
+        eth: "ethBalance",
+        usdt: "usdtBalance",
+        pi: "piBalance",
+      };
+
+      const balanceField = coinFieldMap[payment_currency?.toLowerCase()];
+      if (!balanceField) {
+        throw new Error(`Unsupported coin type: ${payment_currency}`);
+      }
+
       // ✅ Update wallet balance
       await tx.wallet.update({
         where: { userId },
-        data: { balance: { increment: Number(price_amount) } },
+        data: { [balanceField]: { increment: Number(price_amount) } },
       });
 
       // ✅ Notify user
@@ -191,7 +213,9 @@ router.post("/callback", async (req, res) => {
       });
     });
 
-    console.log(`💰 User ${userId} invested ${price_amount} ${payment_currency} in plan ${planId}`);
+    console.log(
+      `💰 User ${userId} invested ${price_amount} ${payment_currency} in plan ${planId}`
+    );
     return res.sendStatus(200);
   } catch (err) {
     console.error("❌ Callback error:", err.message);
