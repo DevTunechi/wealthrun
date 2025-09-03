@@ -54,3 +54,101 @@ export async function createTestPayment() {
     throw error;
   }
 }
+
+/**
+ * ✅ IPN Callback (NOWPayments → WealthRun)
+ * - Confirms the payment
+ * - Activates investment & credits wallet
+ */
+router.post("/callback", async (req, res) => {
+  try {
+    console.log("📩 NOWPayments callback received:", req.body);
+
+    const {
+      payment_status,
+      price_amount,
+      payment_currency,
+      order_id,
+      payment_id,
+    } = req.body;
+
+    // Only confirm finished/confirmed payments
+    if (payment_status !== "finished" && payment_status !== "confirmed") {
+      console.log(`ℹ️ Ignoring payment with status: ${payment_status}`);
+      return res.sendStatus(200);
+    }
+
+    // Extract userId + planId from order_id (INV-timestamp-userId-planId)
+    const parts = order_id.split("-");
+    const userId = parts[parts.length - 2];
+    const planId = parseInt(parts[parts.length - 1]);
+
+    if (!userId || !planId) {
+      console.error("❌ Invalid order_id format:", order_id);
+      return res.status(400).json({ error: "Invalid order_id format" });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Ensure wallet exists
+      let wallet = await tx.wallet.findFirst({ where: { userId } });
+      if (!wallet) {
+        wallet = await tx.wallet.create({
+          data: {
+            userId,
+            balance: 0,
+          },
+        });
+        console.log(`🆕 Wallet auto-created for user ${userId} in callback`);
+      }
+
+      // Update transaction
+      await tx.transaction.updateMany({
+        where: { txId: payment_id.toString() },
+        data: { status: "confirmed" },
+      });
+
+      // Create investment
+      const investment = await tx.userInvestment.create({
+        data: {
+          userId,
+          planId,
+          amount: Number(price_amount),
+          status: "active",
+          startDate: new Date(),
+        },
+      });
+
+      // Credit wallet
+      await tx.wallet.update({
+        where: { id: wallet.id },
+        data: { balance: { increment: Number(price_amount) } },
+      });
+
+      // Notify user
+      const user = await tx.user.findUnique({ where: { id: userId } });
+      if (user) {
+        await sendPaymentReceivedEmail(user.email, {
+          amount: price_amount,
+          asset: payment_currency,
+          txId: payment_id,
+        });
+      }
+
+      // Audit trail
+      await auditTransaction(userId, "investment", {
+        amount: price_amount,
+        crypto: payment_currency,
+        txId: payment_id,
+        status: "confirmed",
+        planId,
+        investmentId: investment.id,
+      });
+    });
+
+    console.log(`💰 User ${userId} invested ${price_amount} ${payment_currency} in plan ${planId}`);
+    return res.sendStatus(200);
+  } catch (err) {
+    console.error("❌ Callback error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
