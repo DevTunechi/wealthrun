@@ -13,6 +13,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// ✅ Fix: Trust Railway's proxy
+app.set("trust proxy", 1); 
+
 // ✅ CORS configuration (frontend dev + prod)
 app.use(cors({
   origin: [
