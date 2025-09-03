@@ -58,13 +58,19 @@ router.post("/create", async (req, res) => {
       }
     );
 
-    // 🔹 Find user's wallet
-    const wallet = await prisma.wallet.findFirst({
+    // 🔹 Ensure user has a wallet (auto-create if not)
+    let wallet = await prisma.wallet.findFirst({
       where: { userId },
     });
 
     if (!wallet) {
-      return res.status(400).json({ error: "Wallet not found for user" });
+      wallet = await prisma.wallet.create({
+        data: {
+          userId,
+          balance: 0, // start empty
+        },
+      });
+      console.log(`🆕 Wallet created for user ${userId}`);
     }
 
     // 🔹 Save transaction record
@@ -129,6 +135,18 @@ router.post("/callback", async (req, res) => {
     }
 
     await prisma.$transaction(async (tx) => {
+       // ✅ Ensure wallet exists
+      let wallet = await tx.wallet.findFirst({ where: { userId } });
+      if (!wallet) {
+        wallet = await tx.wallet.create({
+          data: {
+            userId,
+            balance: 0,
+          },
+        });
+        console.log(`🆕 Wallet auto-created for user ${userId} in callback`);
+      }
+      
       // ✅ Mark transaction confirmed
       await tx.transaction.update({
         where: { txId: payment_id.toString() },
