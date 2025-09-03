@@ -1,55 +1,43 @@
 // backend/src/server.js
-const express = require("express");
-const helmet = require("helmet");
-const cors = require("cors");
-const dotenv = require("dotenv");
-const morgan = require("morgan");
+const express             = require("express");
+const helmet              = require("helmet");
+const cors                = require("cors");
+const dotenv              = require("dotenv");
+const morgan              = require("morgan");
 
 const rateLimitMiddleware = require("./middleware/rateLimitMiddleware");
 require("./utils/cronJobs");
 
 dotenv.config();
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 8080;
 
-// ✅ Trust Railway / Vercel proxy (needed for rate-limit + X-Forwarded headers)
+// ✅ Fix: Trust Railway's proxy
 app.set("trust proxy", 1);
 
-// ------------------------
-// CORS Configuration
-// ------------------------
-const allowedOrigins = [
-  "https://wealthrun.vercel.app", // Production frontend
-  "http://localhost:5173",        // Vite local dev
-  "http://localhost:3000",        // CRA local dev
-];
+// ✅ CORS configuration (frontend dev + prod)
+app.use(cors({
+  origin: [
+    "https://wealthrun.vercel.app", // production frontend
+    "http://localhost:5173",        // Vite local dev
+    "http://localhost:3000"         // CRA local dev
+  ],
+  methods:        ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+  credentials:    true
+}));
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "Accept"],
-    credentials: true,
-  })
-);
-
-// ✅ Handle preflight requests globally
+// ✅ Handle preflight
 app.options("*", cors());
 
 // ------------------------
 // Security + Middleware
 // ------------------------
 app.use(helmet());
-app.use(morgan("dev")); // Logging for debugging
-app.use(express.json());
-app.use(rateLimitMiddleware);
+app.use(morgan("dev"));           // Logging for debugging
+app.use(express.json());          // JSON parsing
+app.use(rateLimitMiddleware);     // Rate limiting
 
 // ------------------------
 // Routes
@@ -63,32 +51,29 @@ app.get("/api/test", (req, res) => {
 });
 
 // Import and mount routes
-const authRoutes = require("./routes/authRoutes");
-const paymentRoutes = require("./routes/paymentRoutes");
-const withdrawalRoutes = require("./routes/withdrawalRoutes");
-const userRoutes = require("./routes/userRoutes");
+const authRoutes        = require("./routes/authRoutes");
+const paymentRoutes     = require("./routes/paymentRoutes");
+const withdrawalRoutes  = require("./routes/withdrawalRoutes");
+const userRoutes        = require("./routes/userRoutes");
 const transactionRoutes = require("./routes/transactionRoutes");
-const emailPreviewRoutes = require("./routes/emailPreview");
-const setupRoutes = require("./routes/setupRoutes");
-const investmentRoutes = require("./routes/investmentRoutes");
+const emailPreviewRoutes= require("./routes/emailPreview");
+const setupRoutes       = require("./routes/setupRoutes");
+const investmentRoutes  = require("./routes/investmentRoutes");
 
-app.use("/api/auth", authRoutes);
-app.use("/api/payments", paymentRoutes);
+app.use("/api/auth",        authRoutes);
+app.use("/api/payments",    paymentRoutes);
 app.use("/api/withdrawals", withdrawalRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/transactions", transactionRoutes);
-app.use("/api/preview", emailPreviewRoutes);
-app.use("/api/setup", setupRoutes);
+app.use("/api/users",       userRoutes);
+app.use("/api/transactions",transactionRoutes);
+app.use("/api/preview",     emailPreviewRoutes);
+app.use("/api/setup",       setupRoutes);
 app.use("/api/investments", investmentRoutes);
 
 // ------------------------
-// Force HTTPS (only in production)
+// Force HTTPS in production
 // ------------------------
 app.use((req, res, next) => {
-  if (
-    process.env.NODE_ENV === "production" &&
-    req.headers["x-forwarded-proto"] !== "https"
-  ) {
+  if (process.env.NODE_ENV === "production" && req.headers["x-forwarded-proto"] !== "https") {
     return res.redirect(`https://${req.headers.host}${req.url}`);
   }
   next();
