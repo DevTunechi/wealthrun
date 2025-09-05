@@ -61,7 +61,7 @@ const Home = () => {
       <PaymentInfoSection />
 
       {/* Support Center */}
-      <div className="bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8 mt-4">
+      <div className="bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8 mt-0">
         <SupportCenter />
       </div>
     </>
