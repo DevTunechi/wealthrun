@@ -1,8 +1,7 @@
-
 // src/pages/Dashboard.jsx
 import SupportCenter from "../components/SupportCenter";
 import WalletInfo from "../components/WalletInfo";
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { logout } from "../services/firebase";
 import { useNavigate } from "react-router-dom";
 import InvestNow from "../components/InvestNow";
@@ -61,7 +60,7 @@ export default function Dashboard({ user }) {
   // ---- Local UI helpers ----
   const [showWallet, setShowWallet] = useState(false);
   const [investmentConfirmed, setInvestmentConfirmed] = useState(false);
-
+  
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawWallet, setWithdrawWallet] = useState("");
   const [withdrawError, setWithdrawError] = useState("");
@@ -69,11 +68,6 @@ export default function Dashboard({ user }) {
 
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  // ---- NOWPayments widget state ----
-  const [paymentIframeUrl, setPaymentIframeUrl] = useState(null);
-  const [currentPaymentId, setCurrentPaymentId] = useState(null);
-  const pollingRef = useRef(null);
 
 useEffect(() => {
   if (user?.uid) {
@@ -179,56 +173,6 @@ useEffect(() => {
     refreshSummaryAndTransactions();
   }, [refreshSummaryAndTransactions]);
 
-  // ---- Payment status polling (uses backend status endpoint) ----
-  useEffect(() => {
-    // Poll payment status when we have a payment id
-    if (!currentPaymentId) return;
-
-    const poll = async () => {
-      try {
-        const resp = await fetch(
-          `${import.meta.env.VITE_API_URL || ""}/api/payments/status?paymentId=${encodeURIComponent(
-            currentPaymentId
-          )}`
-        );
-        const data = await resp.json();
-        // expected response shape: { status: 'pending' | 'confirmed' | 'failed' }
-        if (data?.status === "confirmed" || data?.status === "completed") {
-          // Payment confirmed by backend (likely due to NOWPayments callback)
-          clearInterval(pollingRef.current);
-          pollingRef.current = null;
-          setPaymentIframeUrl(null);
-          setCurrentPaymentId(null);
-          // refresh dashboard data so user sees updated balance/transactions
-          await refreshSummaryAndTransactions();
-          setInvestmentConfirmed(true);
-          setShowWallet(false);
-          alert("Payment confirmed — your balance and transactions have been updated.");
-        } else if (data?.status === "failed" || data?.status === "canceled") {
-          clearInterval(pollingRef.current);
-          pollingRef.current = null;
-          setPaymentIframeUrl(null);
-          setCurrentPaymentId(null);
-          alert("Payment failed or was cancelled. Please try again.");
-        }
-        // otherwise keep polling
-      } catch (e) {
-        console.error("Polling payment status failed:", e);
-      }
-    };
-
-    // start immediate poll + interval
-    poll();
-    pollingRef.current = setInterval(poll, 5000); // every 5s
-
-    return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
-    };
-  }, [currentPaymentId, refreshSummaryAndTransactions]);
-
   // ---- Invest flow (wired to NOWPayments via backend) ----
   const handleInvestNow = async (e) => {
     e.preventDefault();
@@ -256,14 +200,17 @@ useEffect(() => {
       setShowWallet(true);
       setInvestmentConfirmed(false);
 
-      // --- NEW: instead of redirecting to resp.invoice_url, show inline widget/iframe ---
-      // Backend should return a payment_id and an invoice_url; we use invoice_url as iframe src.
-      // We also start polling the backend /api/payments/status?paymentId=... until confirmed.
-      if (resp?.payment_id || resp?.invoice_url) {
-        setCurrentPaymentId(resp.payment_id || resp.id || null);
-        // prefer server-supplied invoice_url for embedding
-        setPaymentIframeUrl(resp.invoice_url || resp.hosted_invoice_url || null);
-      }
+      {pendingPayment && (
+        <div className="mt-6 bg-yellow-900 p-4 rounded text-yellow-100">
+          <h3 className="font-bold mb-2">Send Payment</h3>
+          <p>
+            Please send <strong>{pendingPayment.pay_amount} {pendingPayment.pay_currency.toUpperCase()}</strong>
+            to this address:
+          </p>
+          <p className="break-all text-yellow-300 mt-2">{pendingPayment.pay_address}</p>
+          <p className="text-sm mt-2">Once blockchain confirms, your balance will update automatically.</p>
+        </div>
+      )}
 
       // Optionally insert a local "pending deposit" row so users see something immediately
       setTransactions((prev) => [
@@ -295,13 +242,6 @@ useEffect(() => {
     await refreshSummaryAndTransactions();
     setShowWallet(false);
     setInvestmentConfirmed(true);
-    setPaymentIframeUrl(null);
-    setCurrentPaymentId(null);
-    // ensure polling cleaned
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
-    }
     alert("If you completed the payment, it will reflect here shortly.");
   };
 
@@ -547,26 +487,6 @@ return (
               <p className="mt-2 text-sm opacity-80">
                 Once payment clears on-chain, your dashboard will update
                 automatically (or click “I’ve Paid — Refresh”).
-              </p>
-            </div>
-          )}
-
-          {/* Inline NOWPayments widget iframe */}
-          {paymentIframeUrl && (
-            <div className="mt-6">
-              <h4 className="text-yellow-400 mb-2">Complete payment below</h4>
-              <div className="w-full h-96 border border-gray-700 rounded overflow-hidden">
-                <iframe
-                  title="NOWPayments Widget"
-                  src={paymentIframeUrl}
-                  className="w-full h-full"
-                  sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-                />
-              </div>
-              <p className="text-sm text-gray-300 mt-2">
-                The widget is embedded securely. After payment completes the
-                system will detect the callback and update your dashboard
-                automatically.
               </p>
             </div>
           )}
