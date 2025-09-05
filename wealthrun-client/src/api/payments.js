@@ -20,8 +20,9 @@ export async function createPayment(amount, coin) {
       userId: user.uid,
     }, { withCredentials: true });
 
-    if (res.data && res.data.payment_url) {
-      window.location.href = res.data.payment_url;
+    // ✅ FIX: Change 'payment_url' to 'invoice_url' to match backend response
+    if (res.data && res.data.invoice_url) {
+      window.location.href = res.data.invoice_url;
     } else {
       throw new Error("No payment URL received");
     }
