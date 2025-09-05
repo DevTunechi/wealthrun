@@ -384,7 +384,7 @@ return (
         </select>
       </section>
 
-      {/* Investment + Withdrawal */}
+      {/* Investment plus Withdrawal */}
       <section className="grid md:grid-cols-2 gap-8">
         {/* Investment Section */}
         <div className="bg-gray-800 bg-opacity-80 p-6 rounded-lg shadow-lg max-w-md">
@@ -553,7 +553,7 @@ return (
         </div>
       </section>
 
-      {/* Wallet Info Section (unchanged) */}
+      {/* Wallet Info Section */}
       <WalletInfo />
 
       {/* Transaction History */}
