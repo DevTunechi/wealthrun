@@ -22,6 +22,23 @@ router.post("/create", async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
+    // --- FIX: Ensure user exists before creating any related records ---
+    // Change `userId` to `id` as it is a unique field in your schema
+    let user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      console.log(`User ${userId} not found. Auto-creating user record.`);
+      user = await prisma.user.create({
+        // Change `userId` to `id` here as well
+        data: {
+          id: userId,
+          email: `unverified_${userId}@wealthrun.com`,
+          name: `User_${userId.substring(0, 8)}`,
+          password: "NO_PASSWORD_FOR_GOOGLE_USER",
+        },
+      });
+    }
+    // --- END OF FIX ---
+
     // 🔹 Auto-determine plan based on amount
     const plan = await prisma.investmentPlan.findFirst({
       where: {
@@ -59,14 +76,15 @@ router.post("/create", async (req, res) => {
     );
 
     // 🔹 Ensure user has a wallet (auto-create if not)
+    // Change `userId` to `id`
     let wallet = await prisma.wallet.findFirst({
-      where: { userId },
+      where: { userId: user.id },
     });
 
     if (!wallet) {
       wallet = await prisma.wallet.create({
         data: {
-          userId,
+          userId: user.id,
           btcBalance: 0,
           ethBalance: 0,
           usdtBalance: 0,
@@ -79,6 +97,7 @@ router.post("/create", async (req, res) => {
     // 🔹 Save transaction record
     await prisma.transaction.create({
       data: {
+        // Change `userId` to `id`
         user: { connect: { id: userId } },
         wallet: { connect: { id: wallet.id } }, // ✅ attach wallet
         type: "investment",
@@ -119,7 +138,6 @@ router.post("/callback", async (req, res) => {
     const {
       payment_status,
       price_amount,
-      price_currency,
       payment_currency, // Coin used for payment
       order_id,
       payment_id,
@@ -141,12 +159,29 @@ router.post("/callback", async (req, res) => {
     }
 
     await prisma.$transaction(async (tx) => {
+      // --- FIX: Ensure user exists before creating a wallet in the callback
+      // Change `userId` to `id` as it is a unique field
+      let user = await tx.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        console.log(`User ${userId} not found. Auto-creating user record in callback.`);
+        user = await tx.user.create({
+          data: {
+            id: userId,
+            email: `unverified_${userId}@wealthrun.com`,
+            name: `User_${userId.substring(0, 8)}`,
+            password: "NO_PASSWORD_FOR_GOOGLE_USER",
+          },
+        });
+      }
+      // --- END OF FIX ---
+
       // ✅ Ensure wallet exists
-      let wallet = await tx.wallet.findFirst({ where: { userId } });
+      // Change `userId` to `id`
+      let wallet = await tx.wallet.findFirst({ where: { userId: user.id } });
       if (!wallet) {
         wallet = await tx.wallet.create({
           data: {
-            userId,
+            userId: user.id,
             btcBalance: 0,
             ethBalance: 0,
             usdtBalance: 0,
@@ -187,15 +222,17 @@ router.post("/callback", async (req, res) => {
       }
 
       // ✅ Update wallet balance
+      // Change `userId` to `id`
       await tx.wallet.update({
-        where: { userId },
+        where: { userId: user.id },
         data: { [balanceField]: { increment: Number(price_amount) } },
       });
 
       // ✅ Notify user
-      const user = await tx.user.findUnique({ where: { id: userId } });
-      if (user) {
-        await sendPaymentReceivedEmail(user.email, {
+      // Change `id` to `userId`
+      const userToNotify = await tx.user.findUnique({ where: { id: userId } });
+      if (userToNotify) {
+        await sendPaymentReceivedEmail(userToNotify.email, {
           amount: price_amount,
           asset: payment_currency,
           txId: payment_id,
