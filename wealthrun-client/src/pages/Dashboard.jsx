@@ -176,75 +176,52 @@ useEffect(() => {
   }, [refreshSummaryAndTransactions]);
 
   const handleInvestNow = async (e) => {
-  e.preventDefault();
-  if (error || !investmentAmount) {
-    alert(error || "Please enter a valid investment amount");
-    return;
-  }
-  if (!user?.uid) {
-    alert("Please log in again.");
-    return;
-  }
-
-  const amountNum = parseFloat(investmentAmount);
-  if (Number.isNaN(amountNum) || amountNum < 100) {
-    alert("Minimum investment is $100");
-    return;
-  }
-
-  try {
-    setLoading(true);
-    const payCurrency = payCurrencyByCoinId[selectedCoin]; // "btc", "eth", "usdt"
-    const resp = await createPayment(amountNum, payCurrency, user.uid);
-
-    // ✅ store the pending payment in state (so UI can show it)
-    setPendingPayment(resp);
-
-    setShowWallet(true);
-    setInvestmentConfirmed(false);
-
-    // Optimistic "pending" transaction
-    setTransactions((prev) => [
-      {
-        id: `temp-${Date.now()}`,
-        type: "deposit",
-        amount: amountNum,
-        currency: "USD",
-        coin: coinSymbols[selectedCoin],
-        date: new Date().toISOString(),
-        status: "pending",
-      },
-      ...prev,
-    ]);
-
-    setInvestmentAmount("");
-    setError("");
-  } catch (err) {
-    console.error("Create payment failed:", err);
-    alert("Could not start payment. Please try again.");
-  } finally {
-    setLoading(false);
-  }
-};
-
-{pendingPayment && (
-  <div className="mt-6 bg-yellow-900 p-4 rounded text-yellow-100">
-    <h3 className="font-bold mb-2">Send Payment</h3>
-    <p>
-      Please send{" "}
-      <strong>
-        {pendingPayment.pay_amount} {pendingPayment.pay_currency.toUpperCase()}
-      </strong>{" "}
-      to this address:
-    </p>
-    <p className="break-all text-yellow-300 mt-2">
-      {pendingPayment.pay_address}
-    </p>
-    <p className="text-sm mt-2">
-      Once blockchain confirms, your balance will update automatically.
-    </p>
-  </div>
-)}
+    e.preventDefault();
+    if (error || !investmentAmount) {
+      alert(error || "Please enter a valid investment amount");
+      return;
+    }
+    if (!user?.uid) {
+      alert("Please log in again.");
+      return;
+    }
+  
+    const amountNum = parseFloat(investmentAmount);
+    if (Number.isNaN(amountNum) || amountNum < 100) {
+      alert("Minimum investment is $100");
+      return;
+    }
+  
+    try {
+      setLoading(true);
+      const payCurrency = payCurrencyByCoinId[selectedCoin];
+      const resp = await createPayment(amountNum, payCurrency, user.uid);
+  
+      // ✅ store the pending payment in state (so UI can show it)
+      setPendingPayment(resp);
+  
+      // Optionally add optimistic transaction
+      setTransactions((prev) => [
+        {
+          id: `temp-${Date.now()}`,
+          type: "deposit",
+          amount: amountNum,
+          currency: "USD",
+          coin: coinSymbols[selectedCoin],
+          date: new Date().toISOString(),
+          status: "pending",
+        },
+        ...prev,
+      ]);
+      setInvestmentAmount("");
+      setError("");
+    } catch (err) {
+      console.error("Create payment failed:", err);
+      alert("Could not start payment. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ---- Withdraw flow ----
   const handleWithdraw = async () => {
@@ -476,18 +453,22 @@ return (
             </div>
           </form>
 
-          {showWallet && !investmentConfirmed && (
+          {pendingPayment && (
             <div className="mt-6 bg-yellow-900 p-4 rounded text-yellow-100">
-              <h3 className="font-bold mb-2">
-                Wallet (for reference). Prefer using the secure payment invoice
-                we opened in a new tab.
-              </h3>
-              <p className="break-all">
-                {wealthRunWallets[coinSymbols[selectedCoin]]}
+              <h3 className="font-bold mb-2">Send Payment</h3>
+              <p>
+                Please send{" "}
+                <strong>
+                  {pendingPayment.pay_amount}{" "}
+                  {pendingPayment.pay_currency?.toUpperCase()}
+                </strong>{" "}
+                to this address:
               </p>
-              <p className="mt-2 text-sm opacity-80">
-                Once payment clears on-chain, your dashboard will update
-                automatically (or click “I’ve Paid — Refresh”).
+              <p className="break-all text-yellow-300 mt-2">
+                {pendingPayment.pay_address}
+              </p>
+              <p className="text-sm mt-2">
+                Once blockchain confirms, your dashboard will update.
               </p>
             </div>
           )}

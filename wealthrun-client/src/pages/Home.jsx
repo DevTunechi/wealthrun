@@ -61,7 +61,7 @@ const Home = () => {
       <PaymentInfoSection />
 
       {/* Support Center */}
-      <div className="min-h-screen bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8">
+      <div className="min-h-screen bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8 mb-12">
         <SupportCenter />
       </div>
     </>
