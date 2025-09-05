@@ -69,18 +69,14 @@ export default function Dashboard({ user }) {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
 
-useEffect(() => {
-  if (user?.uid) {
+  useEffect(() => {
+  if (user?.id) {
     setLoading(true);
-    fetchTransactions(user.uid)
+    fetchTransactions(user.id)
       .then((data) => setTransactions(data))
       .finally(() => setLoading(false));
-  } else {
-    // This is important to handle cases where user is not logged in
-    setLoading(false); 
-    console.error("No valid user UID found for transaction fetch.");
   }
-}, [user]);
+  }, [user]);
 
   // ---- Prices (unchanged) ----
   useEffect(() => {
@@ -200,9 +196,9 @@ useEffect(() => {
       setShowWallet(true);
       setInvestmentConfirmed(false);
 
-      if (resp?.payment_url) {
+      if (resp?.invoice_url) {
         // Open NOWPayments invoice in a new tab
-        window.open(resp.invoice_url, "_blank", "noopener,noreferrer");
+        window.open(resp.payment_url, "_blank", "noopener,noreferrer");
       }
 
       // Optionally insert a local "pending deposit" row so users see something immediately
@@ -629,8 +625,9 @@ return (
   )}
 </section>
 
+
       {/* Support Center (unchanged) */}
-      <div className="min-h-screen bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8 mb-12">
+      <div className="min-h-screen bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8">
         <SupportCenter />
       </div>
 
