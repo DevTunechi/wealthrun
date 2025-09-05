@@ -462,7 +462,7 @@ return (
                   {pendingPayment.pay_amount}{" "}
                   {pendingPayment.pay_currency?.toUpperCase()}
                 </strong>{" "}
-                to this address: Copy selected coin wallet address below
+                Copy selected coin wallet address below
               </p>
               <p className="break-all text-yellow-300 mt-2">
                 {pendingPayment.pay_address}
