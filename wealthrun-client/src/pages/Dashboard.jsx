@@ -13,43 +13,31 @@ import {
   requestWithdrawal,
 } from "../api/investments";
 
-// ----- Constants -----
 const coinOptions = ["bitcoin", "ethereum", "tether"];
-const coinSymbols = {
-  bitcoin: "BTC",
-  ethereum: "ETH",
-  tether: "USDT",
-};
-
-const payCurrencyByCoinId = {
-  bitcoin: "btc",
-  ethereum: "eth",
-  tether: "usdt",
-};
-
-const currencySymbols = {
-  USD: "$",
-  EUR: "€",
-  GBP: "£",
-};
+const coinSymbols = { bitcoin: "BTC", ethereum: "ETH", tether: "USDT" };
+const payCurrencyByCoinId = { bitcoin: "btc", ethereum: "eth", tether: "usdt" };
+const currencySymbols = { USD: "$", EUR: "€", GBP: "£" };
 
 export default function Dashboard({ user }) {
   const navigate = useNavigate();
 
-  // ---- UI state ----
+  // ---- UI State ----
   const [currency, setCurrency] = useState("USD");
   const [selectedCoin, setSelectedCoin] = useState("bitcoin");
   const [coinPrices, setCoinPrices] = useState({});
   const [investmentAmount, setInvestmentAmount] = useState("");
   const [error, setError] = useState("");
 
-  // ---- Stats from backend ----
+  // ---- Stats ----
   const [investedAmount, setInvestedAmount] = useState(0);
   const [dailyProfit, setDailyProfit] = useState(0);
   const [investmentStartDate, setInvestmentStartDate] = useState(null);
 
-  // ---- Local helpers ----
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(false);
+
   const [showWallet, setShowWallet] = useState(false);
+  const [pendingPayment, setPendingPayment] = useState(null);
   const [investmentConfirmed, setInvestmentConfirmed] = useState(false);
 
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -57,25 +45,17 @@ export default function Dashboard({ user }) {
   const [withdrawError, setWithdrawError] = useState("");
   const [pendingWithdrawal, setPendingWithdrawal] = useState(false);
 
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const [pendingPayment, setPendingPayment] = useState(null);
-
-  // ---- Load transactions ----
+  // ---- Fetch Transactions ----
   useEffect(() => {
     if (user?.uid) {
       setLoading(true);
       fetchTransactions(user.uid)
         .then((data) => setTransactions(data))
         .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-      console.error("No valid user UID found for transaction fetch.");
     }
   }, [user]);
 
-  // ---- Coin prices ----
+  // ---- Coin Prices ----
   useEffect(() => {
     async function fetchPrices() {
       try {
@@ -92,39 +72,24 @@ export default function Dashboard({ user }) {
     fetchPrices();
   }, []);
 
-  const getPriceForCoin = (coin) => {
-    if (!coinPrices[coin]) return "Loading...";
-    const price = coinPrices[coin][currency.toLowerCase()];
-    return price ? price : "N/A";
-  };
+  const getPriceForCoin = (coin) =>
+    coinPrices[coin]?.[currency.toLowerCase()] || "N/A";
 
-  // ---- Plan logic ----
   const investmentNum = parseFloat(investmentAmount);
-  let plan = null;
   let minInvestment = 100;
-
-  if (!Number.isNaN(investmentNum)) {
-    if (investmentNum >= 1000) {
-      plan = "Premium Plan";
-      minInvestment = 1000;
-    } else if (investmentNum >= 100) {
-      plan = "Basic Plan";
-      minInvestment = 100;
-    }
+  if (!isNaN(investmentNum)) {
+    if (investmentNum >= 1000) minInvestment = 1000;
   }
 
   const handleInvestmentChange = (e) => {
     const val = e.target.value;
     setInvestmentAmount(val);
-    if (val === "") {
-      setError("");
-      return;
-    }
+    if (!val) return setError("");
     const numVal = parseFloat(val);
     if (isNaN(numVal) || numVal < 100) {
       setError("Minimum investment is $100");
     } else if (numVal < minInvestment) {
-      setError(`Minimum for selected plan is $${minInvestment}`);
+      setError(`Minimum for this plan is $${minInvestment}`);
     } else {
       setError("");
     }
@@ -132,7 +97,7 @@ export default function Dashboard({ user }) {
 
   const coinPrice = getPriceForCoin(selectedCoin);
   const coinQuantity =
-    !isNaN(investmentNum) && coinPrice !== "Loading..." && coinPrice !== "N/A"
+    !isNaN(investmentNum) && coinPrice !== "N/A"
       ? (investmentNum / coinPrice).toFixed(6)
       : null;
 
@@ -145,7 +110,6 @@ export default function Dashboard({ user }) {
 
   const currentBalance = investedAmount + dailyProfit * daysSinceInvestment;
 
-  // ---- Refresh data ----
   const refreshSummaryAndTransactions = useCallback(async () => {
     if (!user?.uid) return;
     try {
@@ -158,8 +122,6 @@ export default function Dashboard({ user }) {
       setDailyProfit(summary?.dailyProfit || 0);
       setInvestmentStartDate(summary?.investmentStartDate || null);
       setTransactions(Array.isArray(txs) ? txs : []);
-    } catch (e) {
-      console.error("Failed to refresh data:", e);
     } finally {
       setLoading(false);
     }
@@ -169,22 +131,17 @@ export default function Dashboard({ user }) {
     refreshSummaryAndTransactions();
   }, [refreshSummaryAndTransactions]);
 
-  // ---- Invest flow (direct wallet only) ----
+  // ---- Invest Flow ----
   const handleInvestNow = async (e) => {
     e.preventDefault();
     if (error || !investmentAmount) {
-      alert(error || "Please enter a valid investment amount");
-      return;
+      return alert(error || "Please enter an amount");
     }
-    if (!user?.uid) {
-      alert("Please log in again.");
-      return;
-    }
+    if (!user?.uid) return alert("Please log in again.");
 
     const amountNum = parseFloat(investmentAmount);
-    if (Number.isNaN(amountNum) || amountNum < 100) {
-      alert("Minimum investment is $100");
-      return;
+    if (isNaN(amountNum) || amountNum < 100) {
+      return alert("Minimum investment is $100");
     }
 
     try {
@@ -192,11 +149,11 @@ export default function Dashboard({ user }) {
       const payCurrency = payCurrencyByCoinId[selectedCoin];
       const resp = await createPayment(amountNum, payCurrency, user.uid);
 
+      // ✅ only wallet details, no invoice_url
       setPendingPayment(resp);
       setShowWallet(true);
       setInvestmentConfirmed(false);
 
-      // optimistic pending row
       setTransactions((prev) => [
         {
           id: `temp-${Date.now()}`,
@@ -213,8 +170,8 @@ export default function Dashboard({ user }) {
       setInvestmentAmount("");
       setError("");
     } catch (err) {
-      console.error("Create payment failed:", err);
-      alert("Could not start payment. Please try again.");
+      console.error(err);
+      alert("Could not start payment.");
     } finally {
       setLoading(false);
     }
@@ -224,34 +181,18 @@ export default function Dashboard({ user }) {
     await refreshSummaryAndTransactions();
     setShowWallet(false);
     setInvestmentConfirmed(true);
-    alert("If you completed the payment, it will reflect shortly.");
   };
 
-  // ---- Withdraw flow ----
+  // ---- Withdraw Flow ----
   const handleWithdraw = async () => {
     setWithdrawError("");
     const withdrawNum = parseFloat(withdrawAmount);
-
-    if (!user?.uid) {
-      setWithdrawError("Please log in again.");
-      return;
-    }
-    if (!withdrawWallet) {
-      setWithdrawError("Please enter withdrawal wallet address.");
-      return;
-    }
-    if (isNaN(withdrawNum) || withdrawNum <= 0) {
-      setWithdrawError("Please enter a valid withdrawal amount.");
-      return;
-    }
-    if (withdrawNum > currentBalance) {
-      setWithdrawError(
-        `Withdrawal amount cannot exceed your balance (${currentBalance.toFixed(
-          2
-        )}).`
-      );
-      return;
-    }
+    if (!user?.uid) return setWithdrawError("Please log in again.");
+    if (!withdrawWallet) return setWithdrawError("Enter wallet address.");
+    if (isNaN(withdrawNum) || withdrawNum <= 0)
+      return setWithdrawError("Enter valid amount.");
+    if (withdrawNum > currentBalance)
+      return setWithdrawError("Cannot exceed balance.");
 
     try {
       setPendingWithdrawal(true);
@@ -261,32 +202,24 @@ export default function Dashboard({ user }) {
         coin: coinSymbols[selectedCoin],
         address: withdrawWallet,
       });
-
-      // optimistic row
       setTransactions((prev) => [
         {
           id: `wd-${Date.now()}`,
           type: "withdrawal",
           amount: withdrawNum,
-          currency: currency,
+          currency,
           coin: null,
           date: new Date().toISOString(),
           status: "pending",
         },
         ...prev,
       ]);
-
       setWithdrawAmount("");
       setWithdrawWallet("");
-      alert(
-        `Withdrawal request for ${currencySymbols[currency]}${withdrawNum} submitted.`
-      );
+      alert("Withdrawal submitted.");
       refreshSummaryAndTransactions();
     } catch (e) {
-      console.error("Withdrawal failed:", e);
-      setWithdrawError(
-        e?.message || "Withdrawal failed. Please try again later."
-      );
+      setWithdrawError("Withdrawal failed.");
     } finally {
       setPendingWithdrawal(false);
     }
@@ -297,253 +230,159 @@ export default function Dashboard({ user }) {
     navigate("/login");
   };
 
-  // ---- Render ----
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center space-x-4">
-          {user?.photoURL && (
-            <img
-              src={user.photoURL}
-              alt="User Avatar"
-              className="w-20 h-20 rounded-full border-2 border-yellow-400"
-            />
-          )}
-          <h1 className="text-3xl font-bold text-yellow-400">
-            Welcome, {user?.displayName || user?.email || "Investor"}
-          </h1>
-        </div>
+        <h1 className="text-3xl font-bold text-yellow-400">
+          Welcome, {user?.displayName || user?.email || "Investor"}
+        </h1>
         <button
           onClick={refreshSummaryAndTransactions}
           className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600"
           disabled={loading}
-          title="Refresh balances & transactions"
         >
           {loading ? "Refreshing..." : "Refresh"}
         </button>
       </div>
 
-      {/* Plans */}
-      <section className="grid md:grid-cols-2 gap-8 mb-10">
-        <div className="bg-gray-900 bg-opacity-70 rounded-lg p-6 shadow-lg border border-yellow-600">
-          <h2 className="text-yellow-400 text-2xl font-bold mb-2">Basic Plan</h2>
-          <p className="mb-2">Invest <span className="font-semibold">$100 - $999</span></p>
-          <p className="mb-2">Earn <span className="font-semibold">10%</span> monthly profit</p>
-          <p className="text-sm text-gray-300">Daily interest reflected on your invested capital.</p>
-        </div>
-        <div className="bg-gray-900 bg-opacity-70 rounded-lg p-6 shadow-lg border border-yellow-600">
-          <h2 className="text-yellow-400 text-2xl font-bold mb-2">Premium Plan</h2>
-          <p className="mb-2">Invest <span className="font-semibold">$1,000 and above</span></p>
-          <p className="mb-2">Earn <span className="font-semibold">15%</span> monthly profit</p>
-          <p className="text-sm text-gray-300">Daily interest reflected on your invested capital.</p>
-        </div>
-      </section>
-
-      {/* Currency selector */}
-      <section className="mb-6">
-        <label className="text-yellow-400 font-semibold mr-4">Select Currency:</label>
-        <select
-          className="rounded bg-gray-800 text-white p-2"
-          value={currency}
-          onChange={(e) => setCurrency(e.target.value)}
-        >
-          <option value="USD">USD ($)</option>
-          <option value="EUR">EUR (€)</option>
-          <option value="GBP">GBP (£)</option>
-        </select>
-      </section>
-
-      {/* Investment + Withdrawal */}
+      {/* Investment Section */}
       <section className="grid md:grid-cols-2 gap-8">
-        {/* Invest */}
         <div className="bg-gray-800 bg-opacity-80 p-6 rounded-lg shadow-lg max-w-md">
-          <h2 className="text-yellow-400 text-2xl font-bold mb-4">Make an Investment</h2>
+          <h2 className="text-yellow-400 text-2xl font-bold mb-4">
+            Make an Investment
+          </h2>
           <form onSubmit={handleInvestNow} className="space-y-4">
-            <div>
-              <label className="block text-yellow-400 mb-1">
-                Investment Amount ({currency})
-              </label>
-              <input
-                type="number"
-                min={100}
-                value={investmentAmount}
-                onChange={handleInvestmentChange}
-                className="w-full p-2 rounded bg-gray-700 text-white focus:outline-yellow-400"
-                placeholder="Minimum $100"
-                required
-              />
-              {error && <p className="text-red-500 mt-1">{error}</p>}
-              {coinQuantity && !error && (
-                <p className="mt-2 text-yellow-400 text-sm">
-                  You will receive approximately{" "}
-                  <span className="font-semibold">
-                    {coinQuantity} {coinSymbols[selectedCoin]}
-                  </span>
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-yellow-400 mb-1">Select Crypto Coin</label>
-              <select
-                value={selectedCoin}
-                onChange={(e) => setSelectedCoin(e.target.value)}
-                className="w-full p-2 rounded bg-gray-700 text-white focus:outline-yellow-400"
-              >
-                {coinOptions.map((coin) => (
-                  <option key={coin} value={coin}>{coinSymbols[coin]}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min={100}
+              value={investmentAmount}
+              onChange={handleInvestmentChange}
+              className="w-full p-2 rounded bg-gray-700 text-white"
+              placeholder="Minimum $100"
+              required
+            />
+            <select
+              value={selectedCoin}
+              onChange={(e) => setSelectedCoin(e.target.value)}
+              className="w-full p-2 rounded bg-gray-700 text-white"
+            >
+              {coinOptions.map((c) => (
+                <option key={c} value={c}>
+                  {coinSymbols[c]}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="bg-yellow-500 text-black px-6 py-2 rounded"
+              disabled={loading}
+            >
+              {loading ? "Creating..." : "Invest Now"}
+            </button>
+            {showWallet && (
               <button
-                type="submit"
-                className="bg-yellow-500 text-black px-6 py-2 rounded hover:bg-yellow-400 transition"
-                disabled={loading}
+                type="button"
+                onClick={handleConfirmPayment}
+                className="ml-3 bg-gray-700 text-white px-4 py-2 rounded"
               >
-                {loading ? "Creating Payment..." : "Invest Now"}
+                I've Paid — Refresh
               </button>
-              {showWallet && (
-                <button
-                  type="button"
-                  onClick={handleConfirmPayment}
-                  className="bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-600 transition"
-                >
-                  I've Paid — Refresh
-                </button>
-              )}
-            </div>
+            )}
           </form>
 
           {pendingPayment && showWallet && (
             <div className="mt-6 bg-yellow-900 p-4 rounded text-yellow-100">
               <h3 className="font-bold mb-2">Send Payment</h3>
               <p>
-                Please send{" "}
+                Send{" "}
                 <strong>
-                  {pendingPayment.pay_amount} {pendingPayment.pay_currency?.toUpperCase()}
+                  {pendingPayment.pay_amount}{" "}
+                  {pendingPayment.pay_currency?.toUpperCase()}
                 </strong>{" "}
-                to this address:
+                to:
               </p>
               <p className="break-all text-yellow-300 mt-2">
                 {pendingPayment.pay_address}
               </p>
-              <p className="text-sm mt-2">
-                Once blockchain confirms, your balance will update automatically.
-              </p>
             </div>
           )}
         </div>
 
-        {/* Withdraw */}
+        {/* Withdrawal */}
         <div className="bg-gray-800 bg-opacity-80 p-6 rounded-lg shadow-lg max-w-md">
-          <h2 className="text-yellow-400 text-2xl font-bold mb-4">Withdraw Funds</h2>
-
-          {pendingWithdrawal && (
-            <p className="mb-4 text-yellow-400 italic">
-              Your withdrawal is pending. You’ll be notified when processed.
-            </p>
-          )}
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-yellow-400 mb-1">Withdrawal Amount ({currency})</label>
-              <input
-                type="number"
-                min="1"
-                value={withdrawAmount}
-                onChange={(e) => setWithdrawAmount(e.target.value)}
-                className="w-full p-2 rounded bg-gray-700 text-white focus:outline-yellow-400"
-                placeholder="Enter amount to withdraw"
-              />
-            </div>
-
-            <div>
-              <label className="block text-yellow-400 mb-1">Destination Wallet Address</label>
-              <input
-                type="text"
-                value={withdrawWallet}
-                onChange={(e) => setWithdrawWallet(e.target.value)}
-                className="w-full p-2 rounded bg-gray-700 text-white focus:outline-yellow-400"
-                placeholder="Enter your wallet address"
-              />
-            </div>
-
-            {withdrawError && <p className="text-red-500">{withdrawError}</p>}
-
-            <button
-              onClick={handleWithdraw}
-              className="bg-yellow-500 text-black px-6 py-2 rounded hover:bg-yellow-400 transition"
-            >
-              Submit Withdrawal
-            </button>
-          </div>
+          <h2 className="text-yellow-400 text-2xl font-bold mb-4">
+            Withdraw Funds
+          </h2>
+          <input
+            type="number"
+            min="1"
+            value={withdrawAmount}
+            onChange={(e) => setWithdrawAmount(e.target.value)}
+            className="w-full p-2 rounded bg-gray-700 text-white mb-3"
+            placeholder="Amount"
+          />
+          <input
+            type="text"
+            value={withdrawWallet}
+            onChange={(e) => setWithdrawWallet(e.target.value)}
+            className="w-full p-2 rounded bg-gray-700 text-white mb-3"
+            placeholder="Wallet address"
+          />
+          {withdrawError && <p className="text-red-500">{withdrawError}</p>}
+          <button
+            onClick={handleWithdraw}
+            className="bg-yellow-500 text-black px-6 py-2 rounded"
+          >
+            Withdraw
+          </button>
         </div>
       </section>
 
-      {/* Wallet Info */}
       <WalletInfo />
 
-      {/* Transaction History */}
-      <section className="mt-12 max-w-4xl mx-auto bg-gray-900 bg-opacity-70 rounded-lg p-6 shadow-lg">
-        <h2 className="text-yellow-400 text-2xl font-bold mb-4">Transaction History</h2>
-
-        {loading ? (
-          <p className="text-gray-400">Loading transactions...</p>
-        ) : !transactions || transactions.length === 0 ? (
+      {/* Transactions */}
+      <section className="mt-12 max-w-4xl mx-auto bg-gray-900 p-6 rounded-lg">
+        <h2 className="text-yellow-400 text-2xl font-bold mb-4">
+          Transaction History
+        </h2>
+        {transactions.length === 0 ? (
           <p className="text-gray-300">No transactions yet.</p>
         ) : (
           <table className="w-full text-left text-white">
             <thead>
               <tr>
-                <th className="border-b border-yellow-600 pb-2">Type</th>
-                <th className="border-b border-yellow-600 pb-2">Amount</th>
-                <th className="border-b border-yellow-600 pb-2">Coin</th>
-                <th className="border-b border-yellow-600 pb-2">Date</th>
-                <th className="border-b border-yellow-600 pb-2">Status</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Coin</th>
+                <th>Date</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {transactions.map((tx, idx) => {
-                const { id, type, amount, crypto: coin, createdAt, status } = tx;
-                return (
-                  <tr key={id || idx} className="border-b border-gray-700">
-                    <td className="py-2 capitalize">{type}</td>
-                    <td className="py-2">${Number(amount).toFixed(2)}</td>
-                    <td className="py-2">{coin ? coin.toUpperCase() : "-"}</td>
-                    <td className="py-2">{new Date(createdAt).toLocaleDateString()}</td>
-                    <td
-                      className={`py-2 font-semibold ${
-                        status === "confirmed"
-                          ? "text-green-400"
-                          : status === "pending"
-                          ? "text-yellow-400"
-                          : "text-red-400"
-                      }`}
-                    >
-                      {status}
-                    </td>
-                  </tr>
-                );
-              })}
+              {transactions.map((tx, i) => (
+                <tr key={i}>
+                  <td>{tx.type}</td>
+                  <td>${Number(tx.amount).toFixed(2)}</td>
+                  <td>{tx.crypto || "-"}</td>
+                  <td>{new Date(tx.createdAt).toLocaleDateString()}</td>
+                  <td>{tx.status}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}
       </section>
 
-      {/* Support Center + Logout close together */}
-      <div className="bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8">
+      {/* Support + Logout (tight, no big space) */}
+      <div className="bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8 mt-8">
         <SupportCenter />
-        <div className="mt-6">
-          <button
-            onClick={handleLogout}
-            className="px-6 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-400 transition"
-          >
-            Logout
-          </button>
-        </div>
+        <button
+          onClick={handleLogout}
+          className="mt-6 px-6 py-2 bg-yellow-500 text-black rounded"
+        >
+          Logout
+        </button>
       </div>
     </div>
   );
