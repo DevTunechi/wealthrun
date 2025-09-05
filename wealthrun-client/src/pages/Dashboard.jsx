@@ -4,18 +4,16 @@ import WalletInfo from "../components/WalletInfo";
 import React, { useState, useEffect, useCallback } from "react";
 import { logout } from "../services/firebase";
 import { useNavigate } from "react-router-dom";
-import InvestNow from "../components/InvestNow";
-import { createTestPayment } from "../api/payments";
 import { fetchTransactions } from "../api/transactions";
 
-// Backend API helpers (Vite env expected: VITE_API_URL)
+// Backend API helpers
 import { createPayment } from "../api/payments";
 import {
   fetchInvestmentSummary,
   requestWithdrawal,
 } from "../api/investments";
 
-// ----- Constants kept exactly like your UI -----
+// ----- Constants -----
 const coinOptions = ["bitcoin", "ethereum", "tether"];
 const coinSymbols = {
   bitcoin: "BTC",
@@ -23,7 +21,6 @@ const coinSymbols = {
   tether: "USDT",
 };
 
-// Map to NOWPayments pay_currency values
 const payCurrencyByCoinId = {
   bitcoin: "btc",
   ethereum: "eth",
@@ -36,31 +33,25 @@ const currencySymbols = {
   GBP: "£",
 };
 
-const wealthRunWallets = {
-  BTC: "bc1q54dvqs9rtk992tzjew0cdv8uyc9k9ge03nep92",
-  ETH: "0x07aFDEdB27db01Af05967E547fA10C3642Eacb63",
-  USDT: "0x07aFDEdB27db01Af05967E547fA10C3642Eacb63",
-};
-
 export default function Dashboard({ user }) {
   const navigate = useNavigate();
 
-  // ---- UI state (preserved) ----
+  // ---- UI state ----
   const [currency, setCurrency] = useState("USD");
   const [selectedCoin, setSelectedCoin] = useState("bitcoin");
   const [coinPrices, setCoinPrices] = useState({});
   const [investmentAmount, setInvestmentAmount] = useState("");
   const [error, setError] = useState("");
 
-  // ---- Stats pulled from backend ----
+  // ---- Stats from backend ----
   const [investedAmount, setInvestedAmount] = useState(0);
   const [dailyProfit, setDailyProfit] = useState(0);
   const [investmentStartDate, setInvestmentStartDate] = useState(null);
 
-  // ---- Local UI helpers ----
+  // ---- Local helpers ----
   const [showWallet, setShowWallet] = useState(false);
   const [investmentConfirmed, setInvestmentConfirmed] = useState(false);
-  
+
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawWallet, setWithdrawWallet] = useState("");
   const [withdrawError, setWithdrawError] = useState("");
@@ -71,20 +62,20 @@ export default function Dashboard({ user }) {
 
   const [pendingPayment, setPendingPayment] = useState(null);
 
-useEffect(() => {
-  if (user?.uid) {
-    setLoading(true);
-    fetchTransactions(user.uid)
-      .then((data) => setTransactions(data))
-      .finally(() => setLoading(false));
-  } else {
-    // This is important to handle cases where user is not logged in
-    setLoading(false); 
-    console.error("No valid user UID found for transaction fetch.");
-  }
-}, [user]);
+  // ---- Load transactions ----
+  useEffect(() => {
+    if (user?.uid) {
+      setLoading(true);
+      fetchTransactions(user.uid)
+        .then((data) => setTransactions(data))
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+      console.error("No valid user UID found for transaction fetch.");
+    }
+  }, [user]);
 
-  // ---- Prices (unchanged) ----
+  // ---- Coin prices ----
   useEffect(() => {
     async function fetchPrices() {
       try {
@@ -107,7 +98,7 @@ useEffect(() => {
     return price ? price : "N/A";
   };
 
-  // ---- Plan logic (unchanged visual cues) ----
+  // ---- Plan logic ----
   const investmentNum = parseFloat(investmentAmount);
   let plan = null;
   let minInvestment = 100;
@@ -146,12 +137,15 @@ useEffect(() => {
       : null;
 
   const daysSinceInvestment = investmentStartDate
-    ? Math.floor((Date.now() - new Date(investmentStartDate).getTime()) / (1000 * 60 * 60 * 24))
+    ? Math.floor(
+        (Date.now() - new Date(investmentStartDate).getTime()) /
+          (1000 * 60 * 60 * 24)
+      )
     : 0;
 
   const currentBalance = investedAmount + dailyProfit * daysSinceInvestment;
 
-  // ---- Backend sync helpers ----
+  // ---- Refresh data ----
   const refreshSummaryAndTransactions = useCallback(async () => {
     if (!user?.uid) return;
     try {
@@ -175,6 +169,7 @@ useEffect(() => {
     refreshSummaryAndTransactions();
   }, [refreshSummaryAndTransactions]);
 
+  // ---- Invest flow (direct wallet only) ----
   const handleInvestNow = async (e) => {
     e.preventDefault();
     if (error || !investmentAmount) {
@@ -185,22 +180,23 @@ useEffect(() => {
       alert("Please log in again.");
       return;
     }
-  
+
     const amountNum = parseFloat(investmentAmount);
     if (Number.isNaN(amountNum) || amountNum < 100) {
       alert("Minimum investment is $100");
       return;
     }
-  
+
     try {
       setLoading(true);
       const payCurrency = payCurrencyByCoinId[selectedCoin];
       const resp = await createPayment(amountNum, payCurrency, user.uid);
-  
-      // ✅ store the pending payment in state (so UI can show it)
+
       setPendingPayment(resp);
-  
-      // Optionally add optimistic transaction
+      setShowWallet(true);
+      setInvestmentConfirmed(false);
+
+      // optimistic pending row
       setTransactions((prev) => [
         {
           id: `temp-${Date.now()}`,
@@ -213,6 +209,7 @@ useEffect(() => {
         },
         ...prev,
       ]);
+
       setInvestmentAmount("");
       setError("");
     } catch (err) {
@@ -221,6 +218,13 @@ useEffect(() => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleConfirmPayment = async () => {
+    await refreshSummaryAndTransactions();
+    setShowWallet(false);
+    setInvestmentConfirmed(true);
+    alert("If you completed the payment, it will reflect shortly.");
   };
 
   // ---- Withdraw flow ----
@@ -242,7 +246,9 @@ useEffect(() => {
     }
     if (withdrawNum > currentBalance) {
       setWithdrawError(
-        `Withdrawal amount cannot exceed your balance (${currentBalance.toFixed(2)}).`
+        `Withdrawal amount cannot exceed your balance (${currentBalance.toFixed(
+          2
+        )}).`
       );
       return;
     }
@@ -273,9 +279,8 @@ useEffect(() => {
       setWithdrawAmount("");
       setWithdrawWallet("");
       alert(
-        `Withdrawal request for ${currencySymbols[currency]}${withdrawNum} submitted. You will be notified when processed.`
+        `Withdrawal request for ${currencySymbols[currency]}${withdrawNum} submitted.`
       );
-      // refresh to get real backend state
       refreshSummaryAndTransactions();
     } catch (e) {
       console.error("Withdrawal failed:", e);
@@ -292,87 +297,52 @@ useEffect(() => {
     navigate("/login");
   };
 
-  // ---- Helpers for table display ----
-  const formatDate = (date) => {
-    try {
-      return new Date(date).toLocaleString();
-    } catch {
-      return String(date);
-    }
-  };
-
-  const statusColors = {
-    completed: "text-green-400",
-    confirmed: "text-green-400",
-    pending: "text-yellow-400",
-    failed: "text-red-500",
-    canceled: "text-red-500",
-  };
-
-return (
-  <div className="min-h-screen bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8">
-    {/* Header */}
-    <div className="flex items-center justify-between mb-8">
-      <div className="flex items-center space-x-4">
-        {user?.photoURL && (
-          <img
-            src={user.photoURL}
-            alt="User Avatar"
-            className="w-20 h-20 rounded-full border-2 border-yellow-400"
-          />
-        )}
-        <h1 className="text-3xl font-bold text-yellow-400">
-          Welcome, {user?.displayName || user?.email || "Investor"}
-        </h1>
+  // ---- Render ----
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center space-x-4">
+          {user?.photoURL && (
+            <img
+              src={user.photoURL}
+              alt="User Avatar"
+              className="w-20 h-20 rounded-full border-2 border-yellow-400"
+            />
+          )}
+          <h1 className="text-3xl font-bold text-yellow-400">
+            Welcome, {user?.displayName || user?.email || "Investor"}
+          </h1>
+        </div>
+        <button
+          onClick={refreshSummaryAndTransactions}
+          className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600"
+          disabled={loading}
+          title="Refresh balances & transactions"
+        >
+          {loading ? "Refreshing..." : "Refresh"}
+        </button>
       </div>
-      <button
-        onClick={refreshSummaryAndTransactions}
-        className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600"
-        disabled={loading}
-        title="Refresh balances & transactions"
-      >
-        {loading ? "Refreshing..." : "Refresh"}
-      </button>
-    </div>
 
-
-
-      {/* Investment Plans (unchanged) */}
+      {/* Plans */}
       <section className="grid md:grid-cols-2 gap-8 mb-10">
-        {/* Basic Plan */}
         <div className="bg-gray-900 bg-opacity-70 rounded-lg p-6 shadow-lg border border-yellow-600">
           <h2 className="text-yellow-400 text-2xl font-bold mb-2">Basic Plan</h2>
-          <p className="mb-2">
-            Invest <span className="font-semibold">$100 - $999</span>
-          </p>
-          <p className="mb-2">
-            Earn <span className="font-semibold">10%</span> monthly profit
-          </p>
-          <p className="text-sm text-gray-300">
-            Daily interest reflected on your invested capital.
-          </p>
+          <p className="mb-2">Invest <span className="font-semibold">$100 - $999</span></p>
+          <p className="mb-2">Earn <span className="font-semibold">10%</span> monthly profit</p>
+          <p className="text-sm text-gray-300">Daily interest reflected on your invested capital.</p>
         </div>
-
-        {/* Premium Plan */}
         <div className="bg-gray-900 bg-opacity-70 rounded-lg p-6 shadow-lg border border-yellow-600">
           <h2 className="text-yellow-400 text-2xl font-bold mb-2">Premium Plan</h2>
-          <p className="mb-2">
-            Invest <span className="font-semibold">$1,000 and above</span>
-          </p>
-          <p className="mb-2">
-            Earn <span className="font-semibold">15%</span> monthly profit
-          </p>
-          <p className="text-sm text-gray-300">
-            Daily interest reflected on your invested capital.
-          </p>
+          <p className="mb-2">Invest <span className="font-semibold">$1,000 and above</span></p>
+          <p className="mb-2">Earn <span className="font-semibold">15%</span> monthly profit</p>
+          <p className="text-sm text-gray-300">Daily interest reflected on your invested capital.</p>
         </div>
       </section>
 
-      {/* Currency Selector */}
+      {/* Currency selector */}
       <section className="mb-6">
-        <label className="text-yellow-400 font-semibold mr-4">
-          Select Currency:
-        </label>
+        <label className="text-yellow-400 font-semibold mr-4">Select Currency:</label>
         <select
           className="rounded bg-gray-800 text-white p-2"
           value={currency}
@@ -386,11 +356,9 @@ return (
 
       {/* Investment + Withdrawal */}
       <section className="grid md:grid-cols-2 gap-8">
-        {/* Investment Section */}
+        {/* Invest */}
         <div className="bg-gray-800 bg-opacity-80 p-6 rounded-lg shadow-lg max-w-md">
-          <h2 className="text-yellow-400 text-2xl font-bold mb-4">
-            Make an Investment
-          </h2>
+          <h2 className="text-yellow-400 text-2xl font-bold mb-4">Make an Investment</h2>
           <form onSubmit={handleInvestNow} className="space-y-4">
             <div>
               <label className="block text-yellow-400 mb-1">
@@ -402,7 +370,7 @@ return (
                 value={investmentAmount}
                 onChange={handleInvestmentChange}
                 className="w-full p-2 rounded bg-gray-700 text-white focus:outline-yellow-400"
-                placeholder={`Minimum $100`}
+                placeholder="Minimum $100"
                 required
               />
               {error && <p className="text-red-500 mt-1">{error}</p>}
@@ -417,18 +385,14 @@ return (
             </div>
 
             <div>
-              <label className="block text-yellow-400 mb-1">
-                Select Crypto Coin
-              </label>
+              <label className="block text-yellow-400 mb-1">Select Crypto Coin</label>
               <select
                 value={selectedCoin}
                 onChange={(e) => setSelectedCoin(e.target.value)}
                 className="w-full p-2 rounded bg-gray-700 text-white focus:outline-yellow-400"
               >
                 {coinOptions.map((coin) => (
-                  <option key={coin} value={coin}>
-                    {coinSymbols[coin]}
-                  </option>
+                  <option key={coin} value={coin}>{coinSymbols[coin]}</option>
                 ))}
               </select>
             </div>
@@ -439,7 +403,7 @@ return (
                 className="bg-yellow-500 text-black px-6 py-2 rounded hover:bg-yellow-400 transition"
                 disabled={loading}
               >
-                {loading ? "Opening Invoice..." : "Invest Now"}
+                {loading ? "Creating Payment..." : "Invest Now"}
               </button>
               {showWallet && (
                 <button
@@ -453,14 +417,13 @@ return (
             </div>
           </form>
 
-          {pendingPayment && (
+          {pendingPayment && showWallet && (
             <div className="mt-6 bg-yellow-900 p-4 rounded text-yellow-100">
               <h3 className="font-bold mb-2">Send Payment</h3>
               <p>
                 Please send{" "}
                 <strong>
-                  {pendingPayment.pay_amount}{" "}
-                  {pendingPayment.pay_currency?.toUpperCase()}
+                  {pendingPayment.pay_amount} {pendingPayment.pay_currency?.toUpperCase()}
                 </strong>{" "}
                 to this address:
               </p>
@@ -468,44 +431,15 @@ return (
                 {pendingPayment.pay_address}
               </p>
               <p className="text-sm mt-2">
-                Once blockchain confirms, your dashboard will update.
-              </p>
-            </div>
-          )}
-
-          {(investmentConfirmed || investedAmount > 0) && (
-            <div className="mt-6 text-yellow-300 space-y-1">
-              <p>
-                <strong>Invested Amount:</strong>{" "}
-                {currencySymbols[currency]}
-                {Number(investedAmount).toFixed(2)}
-              </p>
-              <p>
-                <strong>Estimated Daily Profit:</strong>{" "}
-                {currencySymbols[currency]}
-                {Number(dailyProfit).toFixed(2)}
-              </p>
-              <p>
-                <strong>Current Balance:</strong>{" "}
-                {currencySymbols[currency]}
-                {Number(currentBalance).toFixed(2)} (Including accrued profits)
-              </p>
-              <p className="text-sm text-gray-300 italic">
-                {investmentStartDate
-                  ? `Investment started ${daysSinceInvestment} day${
-                      daysSinceInvestment !== 1 ? "s" : ""
-                    } ago.`
-                  : "No active investment yet."}
+                Once blockchain confirms, your balance will update automatically.
               </p>
             </div>
           )}
         </div>
 
-        {/* Withdrawal Section */}
+        {/* Withdraw */}
         <div className="bg-gray-800 bg-opacity-80 p-6 rounded-lg shadow-lg max-w-md">
-          <h2 className="text-yellow-400 text-2xl font-bold mb-4">
-            Withdraw Funds
-          </h2>
+          <h2 className="text-yellow-400 text-2xl font-bold mb-4">Withdraw Funds</h2>
 
           {pendingWithdrawal && (
             <p className="mb-4 text-yellow-400 italic">
@@ -515,9 +449,7 @@ return (
 
           <div className="space-y-4">
             <div>
-              <label className="block text-yellow-400 mb-1">
-                Withdrawal Amount ({currency})
-              </label>
+              <label className="block text-yellow-400 mb-1">Withdrawal Amount ({currency})</label>
               <input
                 type="number"
                 min="1"
@@ -529,9 +461,7 @@ return (
             </div>
 
             <div>
-              <label className="block text-yellow-400 mb-1">
-                Destination Wallet Address
-              </label>
+              <label className="block text-yellow-400 mb-1">Destination Wallet Address</label>
               <input
                 type="text"
                 value={withdrawWallet}
@@ -553,84 +483,67 @@ return (
         </div>
       </section>
 
-      {/* Wallet Info Section (unchanged) */}
+      {/* Wallet Info */}
       <WalletInfo />
 
       {/* Transaction History */}
-<section className="mt-12 max-w-4xl mx-auto bg-gray-900 bg-opacity-70 rounded-lg p-6 shadow-lg">
-  <h2 className="text-yellow-400 text-2xl font-bold mb-4">
-    Transaction History
-  </h2>
+      <section className="mt-12 max-w-4xl mx-auto bg-gray-900 bg-opacity-70 rounded-lg p-6 shadow-lg">
+        <h2 className="text-yellow-400 text-2xl font-bold mb-4">Transaction History</h2>
 
-  {loading ? (
-    <p className="text-gray-400">Loading transactions...</p>
-  ) : !transactions || transactions.length === 0 ? (
-    <p className="text-gray-300">No transactions yet.</p>
-  ) : (
-    <table className="w-full text-left text-white">
-      <thead>
-        <tr>
-          <th className="border-b border-yellow-600 pb-2">Type</th>
-          <th className="border-b border-yellow-600 pb-2">Amount</th>
-          <th className="border-b border-yellow-600 pb-2">Coin</th>
-          <th className="border-b border-yellow-600 pb-2">Date</th>
-          <th className="border-b border-yellow-600 pb-2">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {transactions.map((tx, idx) => {
-          const {
-            id,
-            type,
-            amount,
-            crypto: coin,
-            createdAt,
-            status,
-          } = tx;
-          return (
-            <tr key={id || idx} className="border-b border-gray-700">
-              <td className="py-2 capitalize">{type}</td>
-              <td className="py-2">
-                ${Number(amount).toFixed(2)}
-              </td>
-              <td className="py-2">
-                {coin ? coin.toUpperCase() : "-"}
-              </td>
-              <td className="py-2">
-                {new Date(createdAt).toLocaleDateString()}
-              </td>
-              <td
-                className={`py-2 font-semibold ${
-                  status === "confirmed"
-                    ? "text-green-400"
-                    : status === "pending"
-                    ? "text-yellow-400"
-                    : "text-red-400"
-                }`}
-              >
-                {status}
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  )}
-</section>
+        {loading ? (
+          <p className="text-gray-400">Loading transactions...</p>
+        ) : !transactions || transactions.length === 0 ? (
+          <p className="text-gray-300">No transactions yet.</p>
+        ) : (
+          <table className="w-full text-left text-white">
+            <thead>
+              <tr>
+                <th className="border-b border-yellow-600 pb-2">Type</th>
+                <th className="border-b border-yellow-600 pb-2">Amount</th>
+                <th className="border-b border-yellow-600 pb-2">Coin</th>
+                <th className="border-b border-yellow-600 pb-2">Date</th>
+                <th className="border-b border-yellow-600 pb-2">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transactions.map((tx, idx) => {
+                const { id, type, amount, crypto: coin, createdAt, status } = tx;
+                return (
+                  <tr key={id || idx} className="border-b border-gray-700">
+                    <td className="py-2 capitalize">{type}</td>
+                    <td className="py-2">${Number(amount).toFixed(2)}</td>
+                    <td className="py-2">{coin ? coin.toUpperCase() : "-"}</td>
+                    <td className="py-2">{new Date(createdAt).toLocaleDateString()}</td>
+                    <td
+                      className={`py-2 font-semibold ${
+                        status === "confirmed"
+                          ? "text-green-400"
+                          : status === "pending"
+                          ? "text-yellow-400"
+                          : "text-red-400"
+                      }`}
+                    >
+                      {status}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </section>
 
-      {/* Support Center (unchanged) */}
-      <div className="min-h-screen bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8 mb-12">
+      {/* Support Center + Logout close together */}
+      <div className="bg-gradient-to-b from-black via-yellow-900 to-black text-white p-8">
         <SupportCenter />
-      </div>
-
-      {/* Logout */}
-      <div className="mt-10">
-        <button
-          onClick={handleLogout}
-          className="px-6 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-400 transition"
-        >
-          Logout
-        </button>
+        <div className="mt-6">
+          <button
+            onClick={handleLogout}
+            className="px-6 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-400 transition"
+          >
+            Logout
+          </button>
+        </div>
       </div>
     </div>
   );
