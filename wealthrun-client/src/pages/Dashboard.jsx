@@ -200,10 +200,17 @@ useEffect(() => {
       setShowWallet(true);
       setInvestmentConfirmed(false);
 
-      if (resp?.payment_url) {
-        // Open NOWPayments invoice in a new tab
-        window.location.href = resp.invoice_url;
-      }
+      {pendingPayment && (
+        <div className="mt-6 bg-yellow-900 p-4 rounded text-yellow-100">
+          <h3 className="font-bold mb-2">Send Payment</h3>
+          <p>
+            Please send <strong>{pendingPayment.pay_amount} {pendingPayment.pay_currency.toUpperCase()}</strong>
+            to this address:
+          </p>
+          <p className="break-all text-yellow-300 mt-2">{pendingPayment.pay_address}</p>
+          <p className="text-sm mt-2">Once blockchain confirms, your balance will update automatically.</p>
+        </div>
+      )}
 
       // Optionally insert a local "pending deposit" row so users see something immediately
       setTransactions((prev) => [
