@@ -176,52 +176,57 @@ useEffect(() => {
   }, [refreshSummaryAndTransactions]);
 
   const handleInvestNow = async (e) => {
-    e.preventDefault();
-    if (error || !investmentAmount) {
-      alert(error || "Please enter a valid investment amount");
-      return;
-    }
-    if (!user?.uid) {
-      alert("Please log in again.");
-      return;
-    }
-  
-    const amountNum = parseFloat(investmentAmount);
-    if (Number.isNaN(amountNum) || amountNum < 100) {
-      alert("Minimum investment is $100");
-      return;
-    }
-  
-    try {
-      setLoading(true);
-      const payCurrency = payCurrencyByCoinId[selectedCoin];
-      const resp = await createPayment(amountNum, payCurrency, user.uid);
-  
-      // ✅ store the pending payment in state (so UI can show it)
-      setPendingPayment(resp);
-  
-      // Optionally add optimistic transaction
-      setTransactions((prev) => [
-        {
-          id: `temp-${Date.now()}`,
-          type: "deposit",
-          amount: amountNum,
-          currency: "USD",
-          coin: coinSymbols[selectedCoin],
-          date: new Date().toISOString(),
-          status: "pending",
-        },
-        ...prev,
-      ]);
-      setInvestmentAmount("");
-      setError("");
-    } catch (err) {
-      console.error("Create payment failed:", err);
-      alert("Could not start payment. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  e.preventDefault();
+
+  // basic validations
+  if (error || !investmentAmount) {
+    alert(error || "Please enter a valid investment amount");
+    return;
+  }
+  if (!user?.uid) {
+    alert("Please log in again.");
+    return;
+  }
+
+  const amountNum = parseFloat(investmentAmount);
+  if (Number.isNaN(amountNum) || amountNum < 100) {
+    alert("Minimum investment is $100");
+    return;
+  }
+
+  try {
+    setLoading(true);
+    const payCurrency = payCurrencyByCoinId[selectedCoin];
+    const resp = await createPayment(amountNum, payCurrency);
+
+    // ✅ store the pending payment details from backend
+    setPendingPayment(resp);
+    setShowWallet(true);
+
+    // optimistic pending transaction in UI
+    setTransactions((prev) => [
+      {
+        id: `temp-${Date.now()}`,
+        type: "deposit",
+        amount: amountNum,
+        currency: "USD",
+        coin: coinSymbols[selectedCoin],
+        date: new Date().toISOString(),
+        status: "pending",
+      },
+      ...prev,
+    ]);
+
+    // clear input + error
+    setInvestmentAmount("");
+    setError("");
+  } catch (err) {
+    console.error("Create payment failed:", err);
+    alert("Could not start payment. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ---- Withdraw flow ----
   const handleWithdraw = async () => {
@@ -453,25 +458,38 @@ return (
             </div>
           </form>
 
-          {pendingPayment && (
-            <div className="mt-6 bg-yellow-900 p-4 rounded text-yellow-100">
-              <h3 className="font-bold mb-2">Send Payment</h3>
-              <p>
-                Please {" "}
-                <strong>
-                  {pendingPayment.pay_amount}{" "}
-                  {pendingPayment.pay_currency?.toUpperCase()}
-                </strong>{" "}
-                Copy selected coin wallet address below
-              </p>
-              <p className="break-all text-yellow-300 mt-2">
-                {pendingPayment.pay_address}
-              </p>
-              <p className="text-sm mt-2">
-                Once blockchain confirms, your dashboard will update.
-              </p>
-            </div>
-          )}
+          {pendingPayment && showWallet && (
+  <div className="mt-6 bg-yellow-900 p-4 rounded text-yellow-100">
+    <h3 className="font-bold mb-2">Send Payment</h3>
+    <p>
+      Please send{" "}
+      <strong>
+        {pendingPayment.pay_amount} {pendingPayment.pay_currency?.toUpperCase()}
+      </strong>{" "}
+      to this address:
+    </p>
+
+    <div className="flex items-center mt-2 gap-2">
+      <span className="break-all text-yellow-300">
+        {pendingPayment.pay_address}
+      </span>
+      <button
+        onClick={() => {
+          navigator.clipboard.writeText(pendingPayment.pay_address);
+          alert("Wallet address copied!");
+        }}
+        className="bg-yellow-500 text-black px-2 py-1 rounded text-sm hover:bg-yellow-400"
+      >
+        Copy
+      </button>
+    </div>
+
+    <p className="text-sm mt-2">
+      Once blockchain confirms, your balance will update automatically.
+    </p>
+  </div>
+)}
+
 
           {(investmentConfirmed || investedAmount > 0) && (
             <div className="mt-6 text-yellow-300 space-y-1">
