@@ -8,10 +8,10 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 /**
- * ✅ Create Invoice Route
+ * ✅ Create Payment Route
  * - Users enter amount + choose coin (BTC, ETH, USDT, etc.)
  * - Backend auto-determines plan
- * - Invoices in USD, pays in selected coin
+ * - Creates a direct payment using NOWPayments and returns the wallet + amount to the frontend
  */
 router.post("/create", async (req, res) => {
   try {
@@ -23,16 +23,14 @@ router.post("/create", async (req, res) => {
     }
 
     // --- FIX: Ensure user exists before creating any related records ---
-    // Change `userId` to `id` as it is a unique field in your schema
     let user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       console.log(`User ${userId} not found. Auto-creating user record.`);
       user = await prisma.user.create({
-        // Change `userId` to `id` here as well
         data: {
           id: userId,
           email: `unverified_${userId}@wealthrun.com`,
-          name: `User_${userId.substring(0, 8)}`,
+          name: `User_${userId.substring(0, 0)}`,
           password: "NO_PASSWORD_FOR_GOOGLE_USER",
         },
       });
@@ -54,18 +52,15 @@ router.post("/create", async (req, res) => {
     // 🔹 Create unique orderId
     const orderId = `INV-${Date.now()}-${userId}-${plan.id}`;
 
-    // 🔹 Call NOWPayments API
-    const response = await axios.post(
-      "https://api.nowpayments.io/v1/invoice",
+    // 🔹 Call NOWPayments API to create a direct payment
+    const npRes = await axios.post(
+      "https://api.nowpayments.io/v1/payment",
       {
         price_amount: amount,
         price_currency: "usd", // Always USD
         pay_currency: coin.toLowerCase(), // User-selected coin
         order_id: orderId,
-        order_description: `WealthRun Investment for User ${userId}`,
         ipn_callback_url: `${process.env.BACKEND_URL}/api/payments/callback`,
-        success_url: "https://wealthrun.vercel.app/dashboard",
-        cancel_url: "https://wealthrun.vercel.app/cancel",
       },
       {
         headers: {
@@ -75,8 +70,9 @@ router.post("/create", async (req, res) => {
       }
     );
 
+    const payment = npRes.data;
+
     // 🔹 Ensure user has a wallet (auto-create if not)
-    // Change `userId` to `id`
     let wallet = await prisma.wallet.findFirst({
       where: { userId: user.id },
     });
@@ -97,25 +93,25 @@ router.post("/create", async (req, res) => {
     // 🔹 Save transaction record
     await prisma.transaction.create({
       data: {
-        // Change `userId` to `id`
         user: { connect: { id: userId } },
         wallet: { connect: { id: wallet.id } }, // ✅ attach wallet
         type: "investment",
         amount: Number(amount),
         crypto: coin,
-        txId: response.data.id.toString(),
+        txId: payment.payment_id.toString(),
         status: "pending",
         metadata: { planId: plan.id },
       },
     });
 
-    console.log("✅ NOWPayments create response:", response.data);
+    console.log("✅ NOWPayments create response:", payment);
 
+    // Return the specific payment details needed by the frontend
     return res.json({
-      success: true,
-      invoice_url: response.data.invoice_url,
-      payment_id: response.data.id,
-      selected_plan: plan,
+      payment_id: payment.payment_id,
+      pay_address: payment.pay_address,
+      pay_amount: payment.pay_amount,
+      pay_currency: payment.pay_currency,
     });
   } catch (error) {
     console.error(
@@ -160,7 +156,6 @@ router.post("/callback", async (req, res) => {
 
     await prisma.$transaction(async (tx) => {
       // --- FIX: Ensure user exists before creating a wallet in the callback
-      // Change `userId` to `id` as it is a unique field
       let user = await tx.user.findUnique({ where: { id: userId } });
       if (!user) {
         console.log(`User ${userId} not found. Auto-creating user record in callback.`);
@@ -168,7 +163,7 @@ router.post("/callback", async (req, res) => {
           data: {
             id: userId,
             email: `unverified_${userId}@wealthrun.com`,
-            name: `User_${userId.substring(0, 8)}`,
+            name: `User_${userId.substring(0, 0)}`,
             password: "NO_PASSWORD_FOR_GOOGLE_USER",
           },
         });
@@ -176,7 +171,6 @@ router.post("/callback", async (req, res) => {
       // --- END OF FIX ---
 
       // ✅ Ensure wallet exists
-      // Change `userId` to `id`
       let wallet = await tx.wallet.findFirst({ where: { userId: user.id } });
       if (!wallet) {
         wallet = await tx.wallet.create({
@@ -222,14 +216,12 @@ router.post("/callback", async (req, res) => {
       }
 
       // ✅ Update wallet balance
-      // Change `userId` to `id`
       await tx.wallet.update({
         where: { userId: user.id },
         data: { [balanceField]: { increment: Number(price_amount) } },
       });
 
       // ✅ Notify user
-      // Change `id` to `userId`
       const userToNotify = await tx.user.findUnique({ where: { id: userId } });
       if (userToNotify) {
         await sendPaymentReceivedEmail(userToNotify.email, {
