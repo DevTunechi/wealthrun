@@ -624,7 +624,7 @@ return (
       </div>
 
       {/* Logout */}
-      <div className="mt-10">
+      <div className="mt-4">
         <button
           onClick={handleLogout}
           className="px-6 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-400 transition"
