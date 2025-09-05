@@ -19,14 +19,22 @@ export default function SupportCenter() {
       <section>
         <h3 className="font-semibold mb-2">Need More Help?</h3>
         <p className="mb-4 text-gray-300">
-          For live chat support, click the button below or email wealthruninfo@gmail.com
+          For live chat support, click the button below or email{" "}
+          <a
+            href="mailto:wealthruninfo@gmail.com"
+            className="text-yellow-400 underline"
+          >
+            wealthruninfo@gmail.com
+          </a>
         </p>
-        <button
-          onClick={() => alert("Live chat coming soon!")}
-          className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-2 px-4 rounded"
+
+        {/* Live Chat button → opens default mail client */}
+        <a
+          href="mailto:wealthruninfo@gmail.com?subject=WealthRun%20Support%20Request"
+          className="inline-block bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-2 px-4 rounded"
         >
           Live Chat
-        </button>
+        </a>
       </section>
     </div>
   );
