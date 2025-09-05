@@ -60,7 +60,7 @@ router.post("/create", async (req, res) => {
       {
         price_amount: amount,
         price_currency: "usd", // Always USD
-        pay_currency: coin, // User-selected coin
+        pay_currency: coin.toLowerCase(), // User-selected coin
         order_id: orderId,
         order_description: `WealthRun Investment for User ${userId}`,
         ipn_callback_url: `${process.env.BACKEND_URL}/api/payments/callback`,
