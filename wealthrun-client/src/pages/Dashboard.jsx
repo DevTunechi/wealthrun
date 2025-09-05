@@ -202,7 +202,7 @@ useEffect(() => {
 
       if (resp?.payment_url) {
         // Open NOWPayments invoice in a new tab
-        window.open(resp.invoice_url, "_blank", "noopener,noreferrer");
+        window.location.href = resp.invoice_url;
       }
 
       // Optionally insert a local "pending deposit" row so users see something immediately
