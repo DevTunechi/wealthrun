@@ -457,7 +457,7 @@ return (
             <div className="mt-6 bg-yellow-900 p-4 rounded text-yellow-100">
               <h3 className="font-bold mb-2">Send Payment</h3>
               <p>
-                Please send{" "}
+                Please {" "}
                 <strong>
                   {pendingPayment.pay_amount}{" "}
                   {pendingPayment.pay_currency?.toUpperCase()}
