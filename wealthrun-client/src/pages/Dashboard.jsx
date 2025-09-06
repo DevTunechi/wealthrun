@@ -638,7 +638,7 @@ return (
                 {coin ? coin.toUpperCase() : "-"}
               </td>
               <td className="py-2">
-                {new Date(createdAt).toLocaleDateString()}
+                {createdAt ? new Date(createdAt).toLocaleDateString() : "-"}
               </td>
               <td
                 className={`py-2 font-semibold ${
