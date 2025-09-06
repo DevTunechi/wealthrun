@@ -200,7 +200,13 @@ useEffect(() => {
     const resp = await createPayment(amountNum, payCurrency);
 
     // ✅ store the pending payment details from backend
-    setPendingPayment(resp);
+    setPendingPayment({
+      pay_address: resp.pay_address,
+      pay_amount: resp.pay_amount,
+      pay_currency: resp.pay_currency,
+      payment_id: resp.payment_id,
+    });
+
     setShowWallet(true);
 
     // optimistic pending transaction in UI
@@ -459,36 +465,41 @@ return (
           </form>
 
           {pendingPayment && showWallet && (
-  <div className="mt-6 bg-yellow-900 p-4 rounded text-yellow-100">
-    <h3 className="font-bold mb-2">Send Payment</h3>
-    <p>
-      Please send{" "}
-      <strong>
-        {pendingPayment.pay_amount} {pendingPayment.pay_currency?.toUpperCase()}
-      </strong>{" "}
-      to this address:
-    </p>
+            <div className="mt-6 bg-yellow-900 p-4 rounded text-yellow-100">
+              <h3 className="font-bold mb-2">Send Payment</h3>
+              <p>
+                Please send{" "}
+                <strong>
+                  {pendingPayment?.pay_amount || "0"}{" "}
+                  {pendingPayment?.pay_currency
+                    ? pendingPayment.pay_currency.toUpperCase()
+                    : ""}                  
+                </strong>{" "}
+                to this address:
+              </p>
 
-    <div className="flex items-center mt-2 gap-2">
-      <span className="break-all text-yellow-300">
-        {pendingPayment.pay_address}
-      </span>
-      <button
-        onClick={() => {
-          navigator.clipboard.writeText(pendingPayment.pay_address);
-          alert("Wallet address copied!");
-        }}
-        className="bg-yellow-500 text-black px-2 py-1 rounded text-sm hover:bg-yellow-400"
-      >
-        Copy
-      </button>
-    </div>
+              <div className="flex items-center mt-2 gap-2">
+                <span className="break-all text-yellow-300">
+                  {pendingPayment.pay_address}
+                </span>
+                <button
+                  onClick={() => {
+                    if (pendingPayment?.pay_address) {
+                      navigator.clipboard.writeText(pendingPayment.pay_address);
+                      alert("Wallet address copied!");
+                    }
+                  }}
+                  className="bg-yellow-500 text-black px-2 py-1 rounded text-sm hover:bg-yellow-400"
+                >
+                  Copy
+                </button>
+              </div>
 
-    <p className="text-sm mt-2">
-      Once blockchain confirms, your balance will update automatically.
-    </p>
-  </div>
-)}
+              <p className="text-sm mt-2">
+                Once blockchain confirms, your balance will update automatically.
+              </p>
+            </div>
+          )}
 
 
           {(investmentConfirmed || investedAmount > 0) && (
