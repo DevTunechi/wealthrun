@@ -199,19 +199,7 @@ useEffect(() => {
     const payCurrency = payCurrencyByCoinId[selectedCoin];
     const resp = await createPayment(amountNum, payCurrency);
 
-    // Refresh user’s summary + transactions after they claim they've paid
-    const handleConfirmPayment = async () => {
-      try {
-        await refreshSummaryAndTransactions();
-        setShowWallet(false);
-        setInvestmentConfirmed(true);
-        alert("If you completed the payment, it will reflect here shortly.");
-      } catch (err) {
-        console.error("Confirm payment failed:", err);
-      }
-    };
-
-    // ✅ store the pending payment details from backend
+       // ✅ store the pending payment details from backend
     setPendingPayment({
       pay_address: resp.pay_address,
       pay_amount: resp.pay_amount,
@@ -245,6 +233,18 @@ useEffect(() => {
     setLoading(false);
   }
 };
+
+ // Refresh user’s summary + transactions after they claim they've paid
+    const handleConfirmPayment = async () => {
+      try {
+        await refreshSummaryAndTransactions();
+        setShowWallet(false);
+        setInvestmentConfirmed(true);
+        alert("If you completed the payment, it will reflect here shortly.");
+      } catch (err) {
+        console.error("Confirm payment failed:", err);
+      }
+    };
 
   // ---- Withdraw flow ----
   const handleWithdraw = async () => {
